@@ -1,0 +1,45 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0",
+  "parameters": {
+  },
+  "variables": {},
+  "resources": [
+    {
+      "name": "AzureSqlBulkFailover",
+      "type": "Microsoft.Automation/automationAccounts",
+      "apiVersion": "2015-10-31",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [],
+      "tags": {},
+      "properties": {
+        "comment": "Resource defined structure",
+        "sku": {
+          "name": "Free"
+        }
+      },
+      "resources": [
+        {
+          "type": "runbooks",
+          "apiVersion": "2020-01-13-preview",
+          "name": "AzureSqlBulkFailoverRunbook",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "AzureSqlBulkFailover"
+          ],
+          "properties": {
+            "runbookType": "PowerShell",
+            "logProgress": "false",
+            "logVerbose": "false",
+            "description": "Script to invoke bulk failover",
+            "publishContentLink": {
+              "script": "Write-Output 'Hello, World!'",
+              "version": "1.0.0.0"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": {}
+}
