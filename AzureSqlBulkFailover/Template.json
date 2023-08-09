@@ -66,7 +66,7 @@
         "forceUpdateTag": "[parameters('utcValue')]",
         "azPowerShellVersion": "8.3",
         "timeout": "PT30M",
-        "scriptContent": "[concat('Remove-AzAutomationRunbook -ResourceGroupName ', resourceGroup().name, ' -AutomationAccountName AzureSqlBulkFailover -Name AzureSqlBulkFailoverRunbook -Force')]",
+        "scriptContent": "[concat('Write-Output ''Deleting AzureSqlBulkFailoverRunbook...''; Remove-AzAutomationRunbook -ResourceGroupName ', resourceGroup().name, ' -AutomationAccountName AzureSqlBulkFailover -Name AzureSqlBulkFailoverRunbook -Force; Write-Output ''Done.''; ')]",
         "timeout": "PT10M",
         "cleanupPreference": "OnSuccess",
         "retentionInterval": "P1D"
@@ -106,7 +106,7 @@
             "logVerbose": "false",
             "description": "Triggers failover for many databases",
             "publishContentLink": {
-              "uri": "https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/d09f6989b88bb300d90d7e36a68a38152c82e579/AzureSqlBulkFailover/AzureSqlBulkFailover.ps1",
+              "uri": "https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/d09f6989b88bb300d90d7e36a68a38152c82e579/AzureSqlBulkFailover/AzureSqlBulkFailover.ps1"
 //              "contentHash": "F9DA92601C81339782F0E82618F7B7BB111ECAAB2EA26AF9808D4D14CEEB0D9A", 
 //              "algorithm": "sha256"
             }
