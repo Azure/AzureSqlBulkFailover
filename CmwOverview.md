@@ -42,7 +42,7 @@ Note:
 
 # Step 2: You initiate failover to upgrade databases
 
-:exclamation: _Important: :exclamation: The process described below is appropriate if you wish to trigger failover for a small number of databases.
+:exclamation: **Important:** _The process described below is appropriate if you wish to trigger failover for a small number of databases.
 For simplified failover of dozens or hundreds of databases, use [AzureSqlBulkFailover](AzureSqlBulkFailoverUsage.md) to trigger the failover 
 at the desired time. Then return to this page and continue with **Step 3**._ 
 
