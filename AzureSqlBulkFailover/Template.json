@@ -10,9 +10,7 @@
       "type": "Microsoft.Automation/automationAccounts",
       "apiVersion": "2015-10-31",
       "location": "[resourceGroup().location]",
-      "dependsOn": [
-            "DeleteRunbookBeforeDeployment"
-          ],
+      "dependsOn": [ ],
       "tags": {},
       "properties": {
         "comment": "Resource defined structure",
