@@ -1,0 +1,1 @@
+Write-Object 'Hello, World!'
