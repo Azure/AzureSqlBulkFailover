@@ -1,1 +1,1 @@
-Write-Object 'Hello, World!'
+Write-Output 'Hello, World!'
