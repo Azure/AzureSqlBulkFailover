@@ -42,9 +42,9 @@ Note:
 
 # Step 2: You initiate failover to upgrade databases
 
-:exclamation: NOTE: :exclamation: The process described below is appropriate if you wish to trigger failover for a small number of databases.
+:exclamation: _Important: :exclamation: The process described below is appropriate if you wish to trigger failover for a small number of databases.
 For simplified failover of dozens or hundreds of databases, use [AzureSqlBulkFailover](AzureSqlBulkFailoverUsage.md) to trigger the failover 
-at the desired time. Then return to this page and continue with **Step 3**. 
+at the desired time. Then return to this page and continue with **Step 3**._ 
 
 1. Go to http://portal.azure.com. 
     * For Azure SQL Database elastic pools and databases, the account must belong to the _Subscription Owner_ or _SQL DB Contributor roles_. 
