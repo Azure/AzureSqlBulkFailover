@@ -31,10 +31,10 @@
             "runbookType": "PowerShell",
             "logProgress": "false",
             "logVerbose": "false",
-            "description": "Hello, world!",
+            "description": "Triggers failover for many databases",
             "publishContentLink": {
-              "script": "Write-Output 'Hello, World!'",
-              "scriptType": "PowerShell"
+              "uri": "https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/main/AzureSqlBulkFailover/AzureSqlBulkFailover.ps1",
+              "version": "1.0.0.0"
             }
           }
         }
