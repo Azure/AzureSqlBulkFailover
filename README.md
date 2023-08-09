@@ -3,10 +3,6 @@
 AzureSqlBulkFailover is an Azure Automation runbook that provides fast failover for a large set of Azure SQL databases. 
 The current version can handle Azure SQL DB databases and elastic pools. It will be extended to support Azure SQL Managed Instance resources. 
 
-## How to Deploy AzureSqlBulkFailover
-
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#blade/Microsoft_Azure_CreateUIDef/CustomDeploymentBlade/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzureSqlBulkFailover%2Fmain%2FAzureSqlBulkFailover%2FArmTemplate.json)
-
 ## To Do
 
 * Update SUPPORT.MD with information about this project's support experience
