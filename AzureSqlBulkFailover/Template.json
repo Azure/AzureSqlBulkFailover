@@ -42,9 +42,10 @@
       }
     },
 
-    // Azure Automation re-deployment will not update a runbook that already exists. The bootstrap script runs on ARM template deployment
-    // to delete AzureSqlBulkFailoverRunbook, if it already exists. This ensures that the updated runbook gets the latest script content. 
-    // This runs during initial deployment of the ARM template, and on re-deployment. It is not involved in runbook execution. 
+    // Azure Automation re-deployment will not update existing runbooks. This bootstrap script runs during ARM template deployment to 
+    // delete AzureSqlBulkFailoverRunbook, if it already exists. This ensures that the updated runbook gets recreated with the latest 
+    // script content. This runs during initial deployment of the ARM template, and on re-deployment. It is not involved in runbook 
+    // execution. 
     {
       "type": "Microsoft.Resources/deploymentScripts",
       "apiVersion": "2020-10-01",
@@ -65,7 +66,7 @@
         // Run even if the script has not changed. 
         "forceUpdateTag": "[parameters('utcValue')]",
         "azPowerShellVersion": "8.3",
-        "scriptContent": "[concat('Write-Output ''Deleting AzureSqlBulkFailoverRunbook...''; Remove-AzAutomationRunbook -ResourceGroupName ', resourceGroup().name, ' -AutomationAccountName AzureSqlBulkFailover -Name AzureSqlBulkFailoverRunbook -Force; Get-AzAutomationRunbook -ResourceGroupName ', resourceGroup().name, ' -AutomationAccountName AzureSqlBulkFailover; Write-Output ''Done.''; ')]",
+        "scriptContent": "[concat('Write-Output ''Deleting AzureSqlBulkFailoverRunbook...''; Remove-AzAutomationRunbook -ResourceGroupName ', resourceGroup().name, ' -AutomationAccountName AzureSqlBulkFailover -Name AzureSqlBulkFailoverRunbook -Force; Write-Output ''Listing runbooks...''; Get-AzAutomationRunbook -ResourceGroupName ', resourceGroup().name, ' -AutomationAccountName AzureSqlBulkFailover | select ResourceGroupName, AutomationAccountName, Name, State | ft; Write-Output ''Done.''; ')]",
         "timeout": "PT10M",
         "cleanupPreference": "OnSuccess",
         "retentionInterval": "P1D"
@@ -106,7 +107,7 @@
             "logVerbose": "false",
             "description": "Triggers failover for many databases",
             "publishContentLink": {
-              "uri": "https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/d09f6989b88bb300d90d7e36a68a38152c82e579/AzureSqlBulkFailover/AzureSqlBulkFailover.ps1"
+              "uri": "https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/main/AzureSqlBulkFailover/AzureSqlBulkFailover.ps1"
 //              "contentHash": "F9DA92601C81339782F0E82618F7B7BB111ECAAB2EA26AF9808D4D14CEEB0D9A", 
 //              "algorithm": "sha256"
             }
