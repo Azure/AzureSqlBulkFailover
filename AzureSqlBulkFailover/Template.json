@@ -65,7 +65,7 @@
         // Run even if the script has not changed. 
         "forceUpdateTag": "[parameters('utcValue')]",
         "azPowerShellVersion": "8.3",
-        "scriptContent": "[concat('Write-Output ''Deleting AzureSqlBulkFailoverRunbook...''; Remove-AzAutomationRunbook -ResourceGroupName ', resourceGroup().name, ' -AutomationAccountName AzureSqlBulkFailover -Name AzureSqlBulkFailoverRunbook -Force; Write-Output ''Done.''; ')]",
+        "scriptContent": "[concat('Write-Output ''Deleting AzureSqlBulkFailoverRunbook...''; Remove-AzAutomationRunbook -ResourceGroupName ', resourceGroup().name, ' -AutomationAccountName AzureSqlBulkFailover -Name AzureSqlBulkFailoverRunbook -Force; Get-AzAutomationRunbook -ResourceGroupName ', resourceGroup().name, ' -AutomationAccountName AzureSqlBulkFailover; Write-Output ''Done.''; ')]",
         "timeout": "PT10M",
         "cleanupPreference": "OnSuccess",
         "retentionInterval": "P1D"
@@ -97,7 +97,8 @@
           "name": "AzureSqlBulkFailoverRunbook",
           "location": "[resourceGroup().location]",
           "dependsOn": [
-            "AzureSqlBulkFailover"
+            "AzureSqlBulkFailover", 
+            "[resourceId('Microsoft.Resources/deploymentScripts', 'deleteAzureSqlBulkFailoverRunbook')]"
           ],
           "properties": {
             "runbookType": "PowerShell",
