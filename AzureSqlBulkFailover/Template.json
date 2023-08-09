@@ -6,26 +6,6 @@
   "variables": {},
   "resources": [
     {
-        "type": "Microsoft.Resources/deploymentScripts",
-        "apiVersion": "2020-10-01",
-        "name": "DeleteRunbookBeforeDeployment",
-        "location": "[resourceGroup().location]",
-        "kind": "AzurePowerShell",
-        "identity": {
-            "type": "UserAssigned",
-            "userAssignedIdentities": {
-                "[parameters('identity')]": {}
-            }
-        },
-        "properties": {
-            "azPowerShellVersion": "7.0",
-            "scriptContent": "[concat('Remove-AzAutomationRunbook -ResourceGroupName ', resourceGroup().location, ' -AutomationAccountName AzureSqlBulkFailover -Name AzureSqlBulkFailoverRunbook')]",
-            "timeout": "PT5M",
-            "cleanupPreference": "OnSuccess",
-            "retentionInterval": "P1D"
-        }
-    }, 
-    {
       "name": "AzureSqlBulkFailover",
       "type": "Microsoft.Automation/automationAccounts",
       "apiVersion": "2015-10-31",
