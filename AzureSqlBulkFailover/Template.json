@@ -37,7 +37,7 @@
             "publishContentLink": {
               "uri": "https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/main/AzureSqlBulkFailover/AzureSqlBulkFailover.ps1",
               "version": "1.0.0.0", 
-              "contentHash": "F9DA92601C81339782F0E82618F7B7BB111ECAAB2EA26AF8808D4D14CEEB0D9A", 
+              "contentHash": "F9DA92601C81339782F0E82618F7B7BB111ECAAB2EA26AF9808D4D14CEEB0D9A", 
               "algorithm": "sha256"
             }
           }
