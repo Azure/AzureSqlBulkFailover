@@ -2,10 +2,6 @@
 
 ----
 
-[[_TOC_]]
-
-----
-
 # Overview
 
 This document describes the Self-Service Maintenance process for Azure SQL Database and Azure SQL Managed Instance. 
