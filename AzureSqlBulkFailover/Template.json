@@ -2,15 +2,86 @@
   "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0",
   "parameters": {
+    "utcValue": {
+      "type": "string",
+      "defaultValue": "[utcNow()]"
+    }
   },
-  "variables": {},
+
+  "variables": {
+    // A unique name for the bootstrap script role assignment
+    "bootstrapRoleAssignmentId": "[guid(concat(resourceGroup().id, 'contributor'))]",
+    // The ID of the well-known Contributor role
+    "contributorRoleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]"
+  },
+  
   "resources": [
+
+    // Create an identity to run the setup/bootstrap script. 
+    {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2018-11-30",
+      "name": "AzureSqlBulkFailoverBootstrapIdentity",
+      "location": "[resourceGroup().location]"
+    },
+
+    // Grant the bootstrap identity Contributor role in this resource group. 
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2020-10-01-preview",
+      "name": "[variables('bootstrapRoleAssignmentId')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'AzureSqlBulkFailoverBootstrapIdentity')]"
+      ],
+      "properties": {
+        // The b24988ac... GUID is the ID of the well-known Contributor role. 
+        "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'AzureSqlBulkFailoverBootstrapIdentity'), '2018-11-30').principalId]",
+        "scope": "[resourceGroup().id]",
+        "principalType": "ServicePrincipal"
+      }
+    },
+
+    // Azure Automation re-deployment will not update a runbook that already exists. The bootstrap script runs on ARM template deployment
+    // to delete AzureSqlBulkFailoverRunbook, if it already exists. This ensures that the updated runbook gets the latest script content. 
+    // This runs during initial deployment of the ARM template, and on re-deployment. It is not involved in runbook execution. 
+    {
+      "type": "Microsoft.Resources/deploymentScripts",
+      "apiVersion": "2020-10-01",
+      "name": "deleteAzureSqlBulkFailoverRunbook",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Authorization/roleAssignments', variables('bootstrapRoleAssignmentId'))]"
+      ],
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'AzureSqlBulkFailoverBootstrapIdentity')]": {
+          }
+        }
+      },
+      "kind": "AzurePowerShell",
+      "properties": {
+        // Run even if the script has not changed. 
+        "forceUpdateTag": "[parameters('utcValue')]",
+        "azPowerShellVersion": "8.3",
+        "timeout": "PT30M",
+        "scriptContent": "[concat('Remove-AzAutomationRunbook -ResourceGroupName ', resourceGroup().name, ' -AutomationAccountName AzureSqlBulkFailover -Name AzureSqlBulkFailoverRunbook -Force')]",
+        "timeout": "PT10M",
+        "cleanupPreference": "OnSuccess",
+        "retentionInterval": "P1D"
+      }
+    },
+
+    // An Azure Automation account is a container for runbooks. 
     {
       "name": "AzureSqlBulkFailover",
       "type": "Microsoft.Automation/automationAccounts",
       "apiVersion": "2015-10-31",
       "location": "[resourceGroup().location]",
-      "dependsOn": [ ],
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deploymentScripts', 'deleteAzureSqlBulkFailoverRunbook')]"
+      ],
       "tags": {},
       "properties": {
         "comment": "Resource defined structure",
@@ -19,6 +90,8 @@
         }
       },
       "resources": [
+
+        // An operator executes (or schedules) AzureSqlBulkFailoverRunbook to trigger failover for many databases. 
         {
           "type": "runbooks",
           "apiVersion": "2020-01-13-preview",
@@ -34,8 +107,8 @@
             "description": "Triggers failover for many databases",
             "publishContentLink": {
               "uri": "https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/d09f6989b88bb300d90d7e36a68a38152c82e579/AzureSqlBulkFailover/AzureSqlBulkFailover.ps1",
-              "contentHash": "F9DA92601C81339782F0E82618F7B7BB111ECAAB2EA26AF9808D4D14CEEB0D9A", 
-              "algorithm": "sha256"
+//              "contentHash": "F9DA92601C81339782F0E82618F7B7BB111ECAAB2EA26AF9808D4D14CEEB0D9A", 
+//              "algorithm": "sha256"
             }
           }
         }
