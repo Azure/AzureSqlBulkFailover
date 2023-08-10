@@ -18,7 +18,7 @@ This document describes the Self-Service Maintenance process for Azure SQL Datab
 
 * This process is invitation-only and requires subscription-level enrollment by Microsoft engineers. 
 * You must [configure a service health alert](https://learn.microsoft.com/en-us/azure/azure-sql/database/advance-notifications?view=azuresql#configure-an-advance-notification) to receive push notifications in advance of planned maintenance. 
-* For rapid failover of many databases at once, you must [deploy AzureSqlBulkFailover](./DEPLOY.md) into the subscription that contains your databases. 
+* For rapid failover of many databases at once, you must [deploy AzureSqlBulkFailover](./AzureSqlBulkFailoverSetup.md) into the subscription that contains your databases. 
 
 ----
 
@@ -49,8 +49,8 @@ at the desired time. Then return to this page and continue with **Step 3**._
 1. Go to http://portal.azure.com. 
     * For Azure SQL Database elastic pools and databases, the account must belong to the _Subscription Owner_ or _SQL DB Contributor roles_. 
     * For Azure SQL Managed Instances, the account must belong to the _Subscription Owner_ or _Managed Instance Contributor_ roles. 
-1. In the toolbar to the upper right, click the Cloud Shell icon ![image.png](/.attachments/image-03fa2890-9f01-474b-a60a-024dbc678610.png). 
-    * Cloud Shell requires a storage account. If you have never used Cloud Shell before, on the first use you will be prompted to create or select a storage account. For more information, see [Persist files in Azure Cloud Shell](https://learn.microsoft.com/en-us/azure/cloud-shell/persisting-shell-storage).
+1. In the toolbar to the upper right, click the Cloud Shell icon ![CloudShellIcon.png](/Media/CloudShellIcon.png). 
+   * Cloud Shell requires a storage account. If you have never used Cloud Shell before, on the first use you will be prompted to create or select a storage account. For more information, see [Persist files in Azure Cloud Shell](https://learn.microsoft.com/en-us/azure/cloud-shell/persisting-shell-storage).
 1. Run this command to upgrade a database that is NOT part of an elastic pool or a managed instance: 
     ```
     Invoke-AzSqlDatabaseFailover -ResourceGroupName <resource group name> -ServerName <SQL server name> -DatabaseName <database name>
@@ -84,7 +84,7 @@ These instructions allow failover of from one to a few databases. We are working
 
 ## What is the maximum time that should be required for upgrade of any single database? 
 
-The upgrade of most databases will require from one to three minutes. We are striving for an SLA of < 30 minutes. We will be monitoring the system to collect data about performance under a variety of conditions, and we will look for opportunities to provide the most consistent experience. 
+Our current goal is an SLA of < 30 minutes, although most most databases will require less than 5 minutes. We will be monitoring the system to collect data about performance under a variety of conditions, and we will look for opportunities to provide the most consistent experience. 
 
 ## How can I have the system initiate scheduled failover for me, at a precise time? 
 
