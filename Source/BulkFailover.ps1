@@ -9,7 +9,8 @@
 # if on a runbook then will use the default sub and resource group
 param (
     [string] $SubscriptionId,
-    [string] $ResourceGroupName
+    [string] $ResourceGroupName,
+    [string] $LogFileName = "BulkFailover.log"
 )
 
 # Base URI for ARM API calls, used to parse out the status path for the failover request
@@ -43,12 +44,17 @@ function Log($message) {
         $className = "Main";
     }
     $functionName = $stack1.FunctionName
+    $msg = "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) - $className.$functionName => $message";
+    # if the log file name was passed in then append (creating if needed) to the log file
+    if ($null -ne $LogFileName) {
+        $msg | Out-File -FilePath $LogFileName -Append;
+    }
     Write-Verbose "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) - $className.$functionName => $message"
 }
-
 #endregion
 
-#region server and resource classes
+#region basic classes
+# Class that represents a 
 # Class that represents the base class for resource objects (databases and elastic pools)
 class DatabaseResource {
     [Server]$Server # The server object that contains the resource
@@ -124,6 +130,14 @@ class DatabaseResource {
                         Log "$($this.ResourceId) => Error: $($requestContent.error.message) while trying to failover. Will not retry.";
                         $this.Status = [ResourceStatus]::Failed;
                         $this.Message = $requestContent.error.message;
+                    }
+                    # Check if we have moved into the WaitingToRetry state, if so, 
+                    # get the last completed or inprogress failover attemps.
+                    # If the last one was completed, then log that we dont need to failover this one and move it to the succeeded state.
+                    # If the last one was inprogress, then log that we need to monitor this one and move it to the inprogress state and set the appropriate StatusPath.
+                    if ($this.Status -eq [ResourceStatus]::WaitingToRetry) {
+                        #$lastOperation = $this.GetLastOperation();
+                     
                     }
                 }
                 elseif ($requestContent.Status -eq "Succeeded") {
@@ -366,6 +380,7 @@ class BulkFailover{
                     if ($_.Attempts -lt $global:MaxAttempts) {
                         $_.Failover();
                     }else{
+                        Log "$($_.ResourceId) Max failover attempts reached. Failed to failover. $($_.Message)"
                         $_.Status = [ResourceStatus]::Failed;
                     }
                 }
@@ -451,4 +466,3 @@ catch {
     throw $_.Exception
 }
 #endregion
- #>
