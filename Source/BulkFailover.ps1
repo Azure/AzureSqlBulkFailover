@@ -14,27 +14,34 @@ param (
 
 # Base URI for ARM API calls, used to parse out the status path for the failover request
 $global:ARMBaseUri = "https://management.azure.com";
-$global:MaxRetries = 3;
-$global:RetryDelay = 5; # minutes
+$global:MaxAttempts = 5;
+$global:RetryThrottleDelay = 7; # minutes
+$global:RetryBadStateDelay = 3; # minutes
 $global:SleepTime = 15; # seconds
 
 #region Enumerations, globals and helper functions
 # enum containing resource object status values
 enum ResourceStatus {
     New
-    Throttled
+    WaitingToRetry
     InProgress
     Succeeded
     Failed
 }
-
 
 # helper function to log messages to the console including the date, name of the calling class and method
 function Log($message) {
     # Get the name of the calling class and method
     $stack1 = (Get-PSCallStack)[1]
     $variables = $stack1.GetFrameVariables();
-    $className = $variables["this"].Value
+    $class = $variables["this"];
+    # check if we have a class, if not in main body of script
+    if ($null -ne $class)
+    {
+        $className = $class.Value.GetType().Name;
+    }else{
+        $className = "Main";
+    }
     $functionName = $stack1.FunctionName
     Write-Host "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) - $className.$functionName => $message"
 }
@@ -49,21 +56,21 @@ class DatabaseResource {
     [string]$StatusPath # Used to store the API path to get the status of the resource
     [string]$Message # Used to store the last message for an API call to the resource status or failover
     [datetime]$NextAttempt # Used to store the next time to attempt to get the status of the resource
-    [int]$RetryCount # Used to store the number of times we have tried to failover the resource
+    [int]$Attempts # Used to store the number of times we have tried to failover the resource
     [string]$Name # Name of the resource
     [string]$ResourceId # The id (path) of the resource
 
     # Constructor takes a Server object, and a resource object (database or elastic pool) as returned from the API call methods 
     # and creates a resource object with the required properties to facilitate processing and querying of state
-    Resource([Server]$server, [PSObject]$resource) {
+    DatabaseResource([Server]$server, [PSObject]$resource) {
         $this.Server = $server;
         $this.Status = [ResourceStatus]::New;
         $this.StatusPath = "";
         $this.Message = "";
         $this.NextAttempt = Get-Date;
-        $this.RetryCount = 0;
-        $this.Name = GetName($resource); 
-        $this.ResourceId = GetResourceId($resource);
+        $this.Attempts = 0;
+        $this.Name = $this.GetName($resource); 
+        $this.ResourceId = $this.GetResourceId($resource);
     }
 
     # return the URL to failover the resource (without the ARM base)
@@ -75,15 +82,15 @@ class DatabaseResource {
     [void]Failover()
     {
         $response = Invoke-AzRestMethod -Method POST -Path $this.FailoverUri();
+        $this.Attempts++;
         if (($response.StatusCode -eq 202) -or ($response.StatusCode -eq 200)) {# check if the failover request was accepted or completed Succeededfully
             # get the header that gives us the URL to query the status of the request and remove the ARM prefix, add it to the resource as the status path
             # get the AsynOperationHeader value from the response and parse out the path to the status of the request
             $this.Status = [ResourceStatus]::InProgress;
             $this.Message = "";
-            $CheckStatusPath = $response.Headers["Azure-AsyncOperation"];
-            $CheckStatusPath = $CheckStatusPath -replace [regex]::Escape($($global:ARMBaseUri)), "";
-            $this.StatusPath = $CheckStatusPath;
-            Log "$($this.ResourceId). Monitoring....";
+            $CheckStatusPath = $response.Headers | Where-Object -Property Key -EQ "Azure-AsyncOperation";
+            $this.StatusPath  = ($CheckStatusPath.value[0]) -replace [regex]::Escape($($global:ARMBaseUri)), "";
+            Log "$($this.ResourceId). Failover attempt $($this.Attempts), monitoring....";
         } else {# If we got another kind of response, we failed to failover the resource
             $this.Status = [ResourceStatus]::Failed;
             $this.Message = $response.Content;
@@ -95,17 +102,29 @@ class DatabaseResource {
     # only update status on pending resources
     [void]UpdateFailoverStatus(){
         if ($this.Status -eq [ResourceStatus]::InProgress) {
-            $response = Invoke-AzRestMethod -Method GET -Path $this.StatusPath
+            $response = Invoke-AzRestMethod -Method GET -Path ($this.StatusPath)
             if ($response.StatusCode -eq 200) {
                 # check the content of the request to figure out if the failover completed Succeededfully
                 # if their was no error but the failover has not yest completed then do nothing
                 $requestContent = $response.Content | ConvertFrom-Json;
                 if ($requestContent.Status -eq "Failed") {
-                    Log "$($this.ResourceId) => Throttle: $($requestContent.error.message) while trying to failover.";
-                    $this.RetryCount++;
-                    $this.NextAttempt = (Get-Date).AddMinutes($global:RetryDelay);
-                    $this.Status = [ResourceStatus]::Throttled;
-                    $this.Message = $requestContent.error.message;
+                    # check if we were Throttled or if there was another errror
+                    If ($requestContent.Error.Code -eq "DatabaseFailoverThrottled"){
+                        Log "$($this.ResourceId) => Throttle: $($requestContent.error.message) while trying to failover. Will retry in $global:RetryThrottleDelay minutes.";
+                        $this.NextAttempt = (Get-Date).AddMinutes($global:RetryDelay);
+                        $this.Status = [ResourceStatus]::WaitingToRetry;
+                        $this.Message = $requestContent.error.message;
+                    }elseif($requestContent.Error.Code -eq "DatabaseNotInStateToFailover"){
+                        Log "$($this.ResourceId) => Cant Failover: $($requestContent.error.message) while trying to failover. Will retry in $global:RetryBadStateDelay minutes.";
+                        $this.NextAttempt = (Get-Date).AddMinutes($global:RetryDelay);
+                        $this.Status = [ResourceStatus]::WaitingToRetry;
+                        $this.Message = $requestContent.error.message;
+                    }
+                    else{
+                        Log "$($this.ResourceId) => Error: $($requestContent.error.message) while trying to failover. Will not retry.";
+                        $this.Status = [ResourceStatus]::Failed;
+                        $this.Message = $requestContent.error.message;
+                    }
                 }
                 elseif ($requestContent.Status -eq "Succeeded") {
                     Log "$($this.ResourceId) => Successfully failed over.";
@@ -144,20 +163,28 @@ class DatabaseResource {
     [string]ResourceGroupName() {
         return $this.Server.ResourceGroupName;
     }
+
+    # Helper to get the server name from the server object
+    [string]ServerName() {
+        return $this.Server.Name;
+    }
 }
 
 # Class that represents an elastic pool resource, 
 # needs to override the GetResourceId and GetName methods to get the correct values
 class ElasticPoolResource : DatabaseResource{
+    # Constructor takes a Server object, and a resource object (database or elastic pool) as returned from the API call methods
+    ElasticPoolResource([Server]$server, [PSObject]$resource) : base($server, $resource) {}
+
     # Gets the resource ID (path) from the elastic pool resource object
     [string]GetResourceId([PSObject]$resource)
     {
-        return "/subscriptions/$($this.SubscriptionId)/resourcegroups/$($this.ResourceGroupName)/providers/Microsoft.Sql/servers/$($this.Server.Name)/elasticpools/$($this.Name)";
+        return "/subscriptions/$($this.SubscriptionId())/resourcegroups/$($this.ResourceGroupName())/providers/Microsoft.Sql/servers/$($this.ServerName())/elasticpools/$($this.Name)";
     }
 
     # We only have one pool with many databases, so we need to get the name for the resource from the elasticPool that the database is contained in
     # this makes the FailoverKey the same for all resources in a pool
-    static [string]GetName([PSObject]$resource)
+    [string]GetName([PSObject]$resource)
     {
         return ($resource.properties.elasticPoolId).Split("/")[-1];
     }
@@ -172,9 +199,9 @@ class Server{
     # Constructor takes a server response object as returned from the API call methods 
     # and creates a server object with the required properties to facilitate processing and querying of state
     Server([PSObject]$server) {
-        $this.SubscriptionId = GetSubscriptionId($server);
-        $this.ResourceGroupName = GetResourceGroupName($server);
-        $this.Name = GetName($server);
+        $this.SubscriptionId = $this.GetSubscriptionId($server);
+        $this.ResourceGroupName = $this.GetResourceGroupName($server);
+        $this.Name = $this.GetName($server);
     }
 
     # Helper to get the subscription ID from the server respose object
@@ -194,11 +221,10 @@ class Server{
 }
 
 #endregion
-
 #region List classes
 # Class that represents a list of resources and associated helper methods
 # Note that the base class for all resources is DatabaseResource
-class ResourceList : System.Collections.Generic.List[DatabaseResource]{
+class ResourceList : System.Collections.Generic.List[object]{
     # Helper to get the url (path) to get the list of resources from the server
     static [string]ResourceListUrl([Server]$server){
         return "/subscriptions/$($server.SubscriptionId)/resourcegroups/$($server.ResourceGroupName)/providers/Microsoft.Sql/servers/$($server.Name)/databases?api-version=2021-02-01-preview";
@@ -206,25 +232,28 @@ class ResourceList : System.Collections.Generic.List[DatabaseResource]{
     
     # Determines if the resource is an elastic pool
     static [bool]IsElasticPool([PSObject]$resource) {
-        return $null -ne $resource.properties.elasticPoolId;
+        # use reflexion to check if the property exists
+        $hasElasticPoolId = [bool]($resource.properties | Get-Member -Name "elasticPoolId" -MemberType "NoteProperty")
+        return $hasElasticPoolId -and ($null -ne $resource.properties.elasticPoolId);
     }
 
     # Creates the right kind of resource, depending on whether or not it is an elastic pool
     static [DatabaseResource]CreateResource([Server]$server, [PSObject]$resource) {
-        if (ResourceList::IsElasticPool($resource)) {
-            return [ElasticPoolResource]::new($server, $resource);
+        if ([ResourceList]::IsElasticPool($resource)) {
+            [ElasticPoolResource]$object = [ElasticPoolResource]::new($server, $resource);
         }
         else {
-            return [DatabaseResource]::new($server, $resource);
+            [DatabaseResource]$object = [DatabaseResource]::new($server, $resource);
         }
+        return $object;
     }
 
     # returns the FailoverKey for the resource (makes all databases in an elastic pool have the same FailoverKey,
     # while allowing a database and elastic pool with the same name to have different FailoverKeys)
     static [string]FailoverKey([PSObject]$resource) {
-        if (ResourceList::IsElasticPool($resource))
+        if ([ResourceList]::IsElasticPool($resource))
         {
-            return "ElasticPool_$($resource.properties.elasticPoolName)";
+            return "ElasticPool_$($resource.properties.elasticPoolId.Split("/")[-1])";
         }else{
             return "Database_$($resource.name)";
         }
@@ -236,16 +265,16 @@ class ResourceList : System.Collections.Generic.List[DatabaseResource]{
         # get all the databases (including those in pools)
         # create a hashtable to store the unique resources in
         # the resources failoverkey ensures we only add resources we can failover to the list
-        $url = ResourceListUrl $server
+        $url = [ResourceList]::ResourceListUrl($server)
         $response = Invoke-AzRestMethod -Method GET -Path $url;
         $resourcesToAdd = New-Object -TypeName System.Collections.Hashtable
         $content = ($response.Content | ConvertFrom-Json).value;
         $content | ForEach-Object {
             # create q resource object and add it to the hashtable using the failoverkey as the key
             # ensure we only create and add one resource foreeach key value
-            $key = ResourceList::FailoverKey($_);
+            $key = [ResourceList]::FailoverKey($_);
             if (-not $resourcesToAdd.ContainsKey($key)) {
-                $resource = $this.CreateResource($server, $_);
+                $resource = [ResourceList]::CreateResource($server, $_);
                 $resourcesToAdd[$key] = $resource;
                 $this.Add($resource);
             }
@@ -255,21 +284,27 @@ class ResourceList : System.Collections.Generic.List[DatabaseResource]{
 
     # Helper to get the number of resources in the list that are in the specified ResourceStatus
     [int]CountInStatus([ResourceStatus]$status) {
-        return $this.FindAll({$_.Status -eq $status}).Count;
+        [int]$count = 0;
+        foreach ($resource in $this) {
+            if ($resource.Status -eq $status) {
+                $count++;
+            }
+        }
+        return $count;
     }
-
 }
 
 # Class that represents a list of servers and associates helper methods
-class ServerList : System.Collections.Generic.List[Server]{
+class ServerList : System.Collections.Generic.List[object]{
     # Helper to get the url (path) to get the list of servers from the subscription and resource group
-    static [string]ServerListUrl([string]$subscriptionId, [string]$resourceGroupName) {
+    [string]ServerListUrl([string]$subscriptionId, [string]$resourceGroupName) {
         return "/subscriptions/$subscriptionId/resourcegroups/$resourceGroupName/providers/Microsoft.Sql/servers?api-version=2021-02-01-preview";
     }
 
     # Adds the list of servers in a subscriptions resource group to this list
     [int]AddServers([string]$subscriptionId, [string]$resourceGroupName) {
-        $response = Invoke-AzRestMethod -Method GET -Path ServerList::ServerListUrl($subscriptionId, $resourceGroupName);
+        $url = $this.ServerListUrl($subscriptionId,$resourceGroupName)
+        $response = Invoke-AzRestMethod -Method GET -Path $url;
         $content = ($response.Content | ConvertFrom-Json).value;
         [int]$count = 0;
         $content | ForEach-Object {
@@ -284,10 +319,13 @@ class ServerList : System.Collections.Generic.List[Server]{
 #region BulkFailover class
 # Class that executes the failover process for all database or elastic pool resources in a resource group within a subscription
 class BulkFailover{
+    [ServerList]$servers # list of servers in the resource group
+    [ResourceList]$resources # list of resources in the servers
+
     # Constructor creates the lists of servers and resources
     BulkFailover() {
-        $this.servers = [ServerList]::new();
-        $this.resources = [ResourceList]::new();
+        $this.servers = ([ServerList]::new());
+        $this.resources = ([ResourceList]::new());
     }
 
     # Adds a list of servers to the servers list using the subscriptionId and resource group name
@@ -316,16 +354,16 @@ class BulkFailover{
         return $count;
     }
 
-    # Fail over all the resources in the resources list that are new or throttled and ready for retry
+    # Fail over all the resources in the resources list that are new or WaitingToRetry and ready for retry
     [void]Failover() {
         $this.resources | ForEach-Object {
             if ($_.Status -eq ([ResourceStatus]::New)) {
                 $_.Failover();
-            }elseif ($_.Status -eq ([ResourceStatus]::Throttled)) {
-                # check if enough time has gone by, if so, failover if the number of retries is less than the max
-                # if the number of retries has reached the max, then set the status to failed
-                if ((Get-Date) -ge $_.RetryTime) {
-                    if ($_.Retries -lt $global:MaxRetries) {
+            }elseif ($_.Status -eq ([ResourceStatus]::WaitingToRetry)) {
+                # check if enough time has gone by, if so, failover if the number of Attempts is less than the max
+                # if the number of Attempts has reached the max, then set the status to failed
+                if ((Get-Date) -ge $_.NextAttempt) {
+                    if ($_.Attempts -lt $global:MaxAttempts) {
                         $_.Failover();
                     }else{
                         $_.Status = [ResourceStatus]::Failed;
@@ -348,26 +386,26 @@ class BulkFailover{
     [void]Run([string] $SubscriptionId, [string] $ResourceGroupName) {
         # log the start of the failover process and the time
         $start = Get-Date;
-        Log "Starting bulk failover of all resources in resource group $ResourceGroupName in subscription $SubscriptionId at $start."
+        Log "Starting bulk failover of all resources in resource group $ResourceGroupName in subscription $SubscriptionId."
 
         # add the servers and resources
         $this.AddServers($SubscriptionId, $ResourceGroupName);
         $this.AddResources();
-        Log "Found $($this.resources.Count) resources in $($this.servers.Count) to be failed over."
+        Log "Found $($this.resources.Count) resources in $($this.servers.Count) servers to be failed over."
 
         # loop until all resources are failed or succeeded
         do {
-            # failover new or throttled, wait for the sleep time and update status
+            # failover new or WaitingToRetry, wait for the sleep time and update status
             $this.Failover();
             Start-Sleep -Seconds $global:SleepTime;
             $this.UpdateFailoverStatus();
-¿        }while (($this.resources.CountInStatus([ResourceStatus]::New) -gt 0) -or `
-                ($this.resources.CountInStatus([ResourceStatus]::Throttled) -gt 0) -or `
-                ($this.resources.CountInStatus([ResourceStatus]::InProgress) -gt 0));
+        }while (($this.resources.CountInStatus([ResourceStatus]::New) -gt 0) `
+            -or ($this.resources.CountInStatus([ResourceStatus]::WaitingToRetry) -gt 0) `
+            -or ($this.resources.CountInStatus([ResourceStatus]::InProgress) -gt 0));
     
         # log the final status of the resources
         $end = Get-Date;
-        Log "Succeeded Failing over $($this.Resources.CountInStatus([ResourceStatus]::Failed)) out of $($this.Resources.Count) resources by $end. Process took: $($end - $start).";
+        Log "Succeeded Failedover $($this.Resources.CountInStatus([ResourceStatus]::Succeeded)) out of $($this.Resources.Count). Process took: $($end - $start).";
     }
 }
 
@@ -377,7 +415,8 @@ class BulkFailover{
 # Main method that runs the script to failover all databases and elastic pools in a resource group
 try
 {
-    # Set the verbose preference to continue so we can see the output
+    # Set the string variable declarations and verbose logging preference to continue so we can see the output
+    Set-StrictMode -Version Latest
     $VerbosePreference = "Continue"
     Log "Starting UpgradeMeNow script. Authenticating....."
 
@@ -411,3 +450,4 @@ catch {
     throw $_.Exception
 }
 #endregion
+ #>
