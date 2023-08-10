@@ -15,8 +15,8 @@ param (
 # Base URI for ARM API calls, used to parse out the status path for the failover request
 $global:ARMBaseUri = "https://management.azure.com";
 $global:MaxAttempts = 5;
-$global:RetryThrottleDelay = 7; # minutes
-$global:RetryBadStateDelay = 3; # minutes
+$global:RetryThrottleDelay = 10; # minutes
+$global:RetryBadStateDelay = 5; # minutes
 $global:SleepTime = 15; # seconds
 
 #region Enumerations, globals and helper functions
@@ -43,7 +43,7 @@ function Log($message) {
         $className = "Main";
     }
     $functionName = $stack1.FunctionName
-    Write-Host "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) - $className.$functionName => $message"
+    Write-Verbose "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) - $className.$functionName => $message"
 }
 
 #endregion
@@ -396,6 +396,7 @@ class BulkFailover{
         # loop until all resources are failed or succeeded
         do {
             # failover new or WaitingToRetry, wait for the sleep time and update status
+            Log "$(($this.resources.CountInStatus([ResourceStatus]::New))+($this.resources.CountInStatus([ResourceStatus]::WaitingToRetry))) resources to be failed over...."
             $this.Failover();
             Start-Sleep -Seconds $global:SleepTime;
             $this.UpdateFailoverStatus();
