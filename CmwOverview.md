@@ -18,7 +18,7 @@ This document describes the Self-Service Maintenance process for Azure SQL Datab
 
 * This process is invitation-only and requires subscription-level enrollment by Microsoft engineers. 
 * You must [configure a service health alert](https://learn.microsoft.com/en-us/azure/azure-sql/database/advance-notifications?view=azuresql#configure-an-advance-notification) to receive push notifications in advance of planned maintenance. 
-* For rapid failover of many databases at once, you must [deploy AzureSqlBulkFailover](./DEPLOY.md) into the subscription that contains your databases. 
+* For rapid failover of many databases at once, you must [deploy AzureSqlBulkFailover](./AzureSqlBulkFailoverSetup.md) into the subscription that contains your databases. 
 
 ----
 
