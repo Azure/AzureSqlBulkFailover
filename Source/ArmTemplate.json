@@ -107,7 +107,7 @@
             "logVerbose": "false",
             "description": "Triggers failover for many databases",
             "publishContentLink": {
-              "uri": "https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/main/source/AzureSqlBulkFailover.ps1"
+              "uri": "https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/main/Source/AzureSqlBulkFailover.ps1"
             }
           }
         }
