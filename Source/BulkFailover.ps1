@@ -111,12 +111,12 @@ class DatabaseResource {
                     # check if we were Throttled or if there was another errror
                     If ($requestContent.Error.Code -eq "DatabaseFailoverThrottled"){
                         Log "$($this.ResourceId) => Throttle: $($requestContent.error.message) while trying to failover. Will retry in $global:RetryThrottleDelay minutes.";
-                        $this.NextAttempt = (Get-Date).AddMinutes($global:RetryDelay);
+                        $this.NextAttempt = (Get-Date).AddMinutes($global:RetryThrottleDelay);
                         $this.Status = [ResourceStatus]::WaitingToRetry;
                         $this.Message = $requestContent.error.message;
                     }elseif($requestContent.Error.Code -eq "DatabaseNotInStateToFailover"){
                         Log "$($this.ResourceId) => Cant Failover: $($requestContent.error.message) while trying to failover. Will retry in $global:RetryBadStateDelay minutes.";
-                        $this.NextAttempt = (Get-Date).AddMinutes($global:RetryDelay);
+                        $this.NextAttempt = (Get-Date).AddMinutes($global:RetryBadStateDelay);
                         $this.Status = [ResourceStatus]::WaitingToRetry;
                         $this.Message = $requestContent.error.message;
                     }
