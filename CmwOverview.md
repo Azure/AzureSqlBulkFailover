@@ -84,7 +84,7 @@ These instructions allow failover of from one to a few databases. We are working
 
 ## What is the maximum time that should be required for upgrade of any single database? 
 
-The upgrade of most databases will require from one to three minutes. We are striving for an SLA of < 30 minutes. We will be monitoring the system to collect data about performance under a variety of conditions, and we will look for opportunities to provide the most consistent experience. 
+Our current goal is an SLA of < 30 minutes, although most most databases will require less than 5 minutes. We will be monitoring the system to collect data about performance under a variety of conditions, and we will look for opportunities to provide the most consistent experience. 
 
 ## How can I have the system initiate scheduled failover for me, at a precise time? 
 
