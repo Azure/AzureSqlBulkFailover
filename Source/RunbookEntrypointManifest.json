@@ -1,0 +1,4 @@
+[
+    "Source/AzureSqlBulkFailover.ps1",
+    "Source/TestSecondScript.ps1"
+]
