@@ -2,3 +2,18 @@
     "Source/AzureSqlBulkFailover.ps1",
     "Source/TestSecondScript.ps1"
 ]
+
+[
+    {
+        "File":  "Source/AzureSqlBulkFailover.ps1",
+        "Execute":  true
+    },
+    {
+        "P2":  "Source/TestSecondScript.ps1",
+        "P1":  true
+    },
+    {
+        "P2":  "Source/BulkFailover.ps1",
+        "P1":  false
+    }
+]
