@@ -13,20 +13,20 @@ param (
     [string] $LogFileName = "BulkFailover.log"
 )
 
-# Base URI for ARM API calls, used to parse out the status path for the failover request
+# Base URI for ARM API calls, used to parse out the FailoverStatus path for the failover request
 $global:ARMBaseUri = "https://management.azure.com";
 $global:MaxAttempts = 5;
-$global:RetryThrottleDelay = 10; # minutes
-$global:RetryBadStateDelay = 5; # minutes
+$global:RetryThrottleDelay = 5; # minutes
 $global:SleepTime = 15; # seconds
 
 #region Enumerations, globals and helper functions
-# enum containing resource object status values
-enum ResourceStatus {
-    New
+# enum containing resource object FailoverStatus values
+enum FailoverStatus {
+    Pending
     WaitingToRetry
     InProgress
     Succeeded
+    Skipped
     Failed
 }
 
@@ -54,29 +54,46 @@ function Log($message) {
 #endregion
 
 #region basic classes
-# Class that represents a 
+# Class that represents a FailoverDatabase or pool operation
+class FailoverOperation {
+    [FailoverStatus]$FailoverStatus # Used to store the FailoverStatus of the operation
+    [string]$FailoverStatusPath # Used to store the API path to get the FailoverStatus of the operation
+    FailoverOperation([DatabaseResource] $resource)
+    {
+        $this.FailoverStatus = $resource.FailoverStatus;
+        $this.OperationStatusPath = $resource.FailoverStatusPath;
+    }
+
+    # Function used to store the API path to get the FailoverStatus of the operation
+    [string] GetOperationStatusPath() {
+        return "dummy";
+    }
+}
+
 # Class that represents the base class for resource objects (databases and elastic pools)
 class DatabaseResource {
     [Server]$Server # The server object that contains the resource
-    [ResourceStatus]$Status # Used to store the status of the resource
-    [string]$StatusPath # Used to store the API path to get the status of the resource
-    [string]$Message # Used to store the last message for an API call to the resource status or failover
-    [datetime]$NextAttempt # Used to store the next time to attempt to get the status of the resource
+    [FailoverStatus]$FailoverStatus # Used to store the FailoverStatus of the resource
+    [string]$FailoverStatusPath # Used to store the API path to get the FailoverStatus of the resource
+    [string]$Message # Used to store the last message for an API call to the resource FailoverStatus or failover
+    [datetime]$NextAttempt # Used to store the next time to attempt to get the FailoverStatus of the resource
     [int]$Attempts # Used to store the number of times we have tried to failover the resource
     [string]$Name # Name of the resource
     [string]$ResourceId # The id (path) of the resource
+    [bool]$ShouldFailover # Used to store if the resource will upgrade when failover is invoked (if this is false, resource will be skipped)
 
     # Constructor takes a Server object, and a resource object (database or elastic pool) as returned from the API call methods 
     # and creates a resource object with the required properties to facilitate processing and querying of state
     DatabaseResource([Server]$server, [PSObject]$resource) {
         $this.Server = $server;
-        $this.Status = [ResourceStatus]::New;
-        $this.StatusPath = "";
+        $this.FailoverStatus = [FailoverStatus]::Pending;
+        $this.FailoverStatusPath = "";
         $this.Message = "";
         $this.NextAttempt = Get-Date;
         $this.Attempts = 0;
         $this.Name = $this.GetName($resource); 
         $this.ResourceId = $this.GetResourceId($resource);
+        $this.ShouldFailover = $this.GetIsFailoverUpgrade($resource);
     }
 
     # return the URL to failover the resource (without the ARM base)
@@ -84,31 +101,39 @@ class DatabaseResource {
         return "$($this.ResourceId)/failover?api-version=2021-02-01-preview";
     }
 
-    # Fails over the resource, updating the required request information and status in it
+    # Fails over the resource, updating the required request information and FailoverStatus in it
     [void]Failover()
     {
-        $response = Invoke-AzRestMethod -Method POST -Path $this.FailoverUri();
-        $this.Attempts++;
-        if (($response.StatusCode -eq 202) -or ($response.StatusCode -eq 200)) {# check if the failover request was accepted or completed Succeededfully
-            # get the header that gives us the URL to query the status of the request and remove the ARM prefix, add it to the resource as the status path
-            # get the AsynOperationHeader value from the response and parse out the path to the status of the request
-            $this.Status = [ResourceStatus]::InProgress;
-            $this.Message = "";
-            $CheckStatusPath = $response.Headers | Where-Object -Property Key -EQ "Azure-AsyncOperation";
-            $this.StatusPath  = ($CheckStatusPath.value[0]) -replace [regex]::Escape($($global:ARMBaseUri)), "";
-            Log "$($this.ResourceId). Failover attempt $($this.Attempts), monitoring....";
-        } else {# If we got another kind of response, we failed to failover the resource
-            $this.Status = [ResourceStatus]::Failed;
-            $this.Message = $response.Content;
-            Log "$($this.ResourceId). Error: $($response.StatusCode) - $($this.Message).";
+        #only failover resources that should be failed over, set the FailoverStatus of the rest to skipped
+        if ($this.ShouldFailover) {
+            $response = Invoke-AzRestMethod -Method POST -Path $this.FailoverUri();
+            $this.Attempts++;
+            if (($response.StatusCode -eq 202) -or ($response.StatusCode -eq 200)) {# check if the failover request was accepted or completed Succeededfully
+                # get the header that gives us the URL to query the FailoverStatus of the request and remove the ARM prefix, add it to the resource as the FailoverStatus path
+                # get the AsynOperationHeader value from the response and parse out the path to the FailoverStatus of the request
+                $this.FailoverStatus = [FailoverStatus]::InProgress;
+                $this.Message = "";
+                $CheckStatusPath = $response.Headers | Where-Object -Property Key -EQ "Azure-AsyncOperation";
+                $this.FailoverStatusPath  = ($CheckStatusPath.value[0]) -replace [regex]::Escape($($global:ARMBaseUri)), "";
+                Log "$($this.ResourceId). Failover attempt $($this.Attempts), monitoring....";
+            } else {# If we got another kind of response, we failed to failover the resource
+                $this.FailoverStatus = [FailoverStatus]::Failed;
+                $this.Message = $response.Content;
+                Log "$($this.ResourceId). Error: $($response.StatusCode) - $($this.Message).";
+            }
+        }
+        else {
+            $this.FailoverStatus = [FailoverStatus]::Skipped;
+            $this.Message = "Resource is not eligible (is hyperscale) or does not need failover (is offline).";
+            Log "$($this.ResourceId). $($this.Message). Will be skipped.";
         }
     }
 
-    # update the resource status based on the status of the failover request
-    # only update status on pending resources
+    # update the resource FailoverStatus based on the FailoverStatus of the failover request
+    # only update FailoverStatus on pending resources
     [void]UpdateFailoverStatus(){
-        if ($this.Status -eq [ResourceStatus]::InProgress) {
-            $response = Invoke-AzRestMethod -Method GET -Path ($this.StatusPath)
+        if ($this.FailoverStatus -eq [FailoverStatus]::InProgress) {
+            $response = Invoke-AzRestMethod -Method GET -Path ($this.FailoverStatusPath)
             if ($response.StatusCode -eq 200) {
                 # check the content of the request to figure out if the failover completed Succeededfully
                 # if their was no error but the failover has not yest completed then do nothing
@@ -118,37 +143,35 @@ class DatabaseResource {
                     If ($requestContent.Error.Code -eq "DatabaseFailoverThrottled"){
                         Log "$($this.ResourceId) => Throttle: $($requestContent.error.message) while trying to failover. Will retry in $global:RetryThrottleDelay minutes.";
                         $this.NextAttempt = (Get-Date).AddMinutes($global:RetryThrottleDelay);
-                        $this.Status = [ResourceStatus]::WaitingToRetry;
+                        $this.FailoverStatus = [FailoverStatus]::WaitingToRetry;
                         $this.Message = $requestContent.error.message;
                     }elseif($requestContent.Error.Code -eq "DatabaseNotInStateToFailover"){
-                        Log "$($this.ResourceId) => Cant Failover: $($requestContent.error.message) while trying to failover. Will retry in $global:RetryBadStateDelay minutes.";
-                        $this.NextAttempt = (Get-Date).AddMinutes($global:RetryBadStateDelay);
-                        $this.Status = [ResourceStatus]::WaitingToRetry;
+                        Log "$($this.ResourceId) => Is serverless and offline so doesnt need failover.";
+                        $this.FailoverStatus = [FailoverStatus]::Skipped;
                         $this.Message = $requestContent.error.message;
                     }
                     else{
                         Log "$($this.ResourceId) => Error: $($requestContent.error.message) while trying to failover. Will not retry.";
-                        $this.Status = [ResourceStatus]::Failed;
+                        $this.FailoverStatus = [FailoverStatus]::Failed;
                         $this.Message = $requestContent.error.message;
                     }
                     # Check if we have moved into the WaitingToRetry state, if so, 
                     # get the last completed or inprogress failover attemps.
                     # If the last one was completed, then log that we dont need to failover this one and move it to the succeeded state.
-                    # If the last one was inprogress, then log that we need to monitor this one and move it to the inprogress state and set the appropriate StatusPath.
-                    if ($this.Status -eq [ResourceStatus]::WaitingToRetry) {
-                        #$lastOperation = $this.GetLastOperation();
-                     
+                    # If the last one was inprogress, then log that we need to monitor this one and move it to the inprogress state and set the appropriate FailoverStatusPath.
+                    if ($this.FailoverStatus -eq ([FailoverStatus]::WaitingToRetry)) {
+                        #$lastOperation = $this.GetLastFailoverOperation();
                     }
                 }
-                elseif ($requestContent.Status -eq "Succeeded") {
+                elseif ($requestContent.FailoverStatus -eq "Succeeded") {
                     Log "$($this.ResourceId) => Successfully failed over.";
-                    $this.Status = [ResourceStatus]::Succeeded;
+                    $this.FailoverStatus = [FailoverStatus]::Succeeded;
                 }
             }
             else{
                 # if the request did not complete then report the error and remove the request from the list
-                Log "$($this.ResourceId) => Error: $($response.StatusCode) while trying to get status.";
-                $this.Status = [ResourceStatus]::Failed;
+                Log "$($this.ResourceId) => Error: $($response.StatusCode) while trying to get FailoverStatus.";
+                $this.FailoverStatus = [FailoverStatus]::Failed;
                 $this.Message = $response.Content;
             }
         }
@@ -181,6 +204,34 @@ class DatabaseResource {
     # Helper to get the server name from the server object
     [string]ServerName() {
         return $this.Server.Name;
+    }
+
+    # Helper to get the IsActive property from the resource object 
+    [bool]GetIsActive([PSObject]$resource) {
+        return ($resource.Properties.FailoverStatus) -eq "Online";
+    }
+
+    # Helper to determine if the failover will actually invoke the UpgradeMeNow process.
+    # This is determined by whether the CurrentSku tier of the databse is not HyperScale
+    [bool]GetIsFailoverUpgrade([PSObject]$resource) {
+        return ($resource.Properties.CurrentSku.tier) -ne "Hyperscale";
+    }
+
+    # Helper to determine if the resource should be failed over
+    [bool]ShouldFailover([PSObject]$resource) {
+        # note that if the DB is inactive and then become active during the script run
+        # it will not be failed over which is fine because it will get activated on the correct upgrade domain so doesnt need to be failed over
+        return $this.GetIsFailoverUpgrade($resource) -and $this.GetIsActive($resource);
+    }
+
+    # Helper to determine if the resource failover process is complete
+    [bool]IsComplete() {
+        return ($this.FailoverStatus -eq ([FailoverStatus]::Succeeded)) -or ($this.FailoverStatus -eq ([FailoverStatus]::Failed)) -or ($this.FailoverStatus -eq ([FailoverStatus]::Skipped));
+    }
+
+    [FailoverOperation]GetLastFailoverOperation(){
+        return [FailoverOperation]::new();
+
     }
 }
 
@@ -296,15 +347,25 @@ class ResourceList : System.Collections.Generic.List[object]{
         return $resourcesToAdd.Count;
     }
 
-    # Helper to get the number of resources in the list that are in the specified ResourceStatus
-    [int]CountInStatus([ResourceStatus]$status) {
+    # Helper to get the number of resources in the list that are in the specified FailoverStatus
+    [int]CountInStatus([FailoverStatus]$FailoverStatus) {
         [int]$count = 0;
         foreach ($resource in $this) {
-            if ($resource.Status -eq $status) {
+            if ($resource.FailoverStatus -eq $FailoverStatus) {
                 $count++;
             }
         }
         return $count;
+    }
+
+    # Helper to determine if the list has any resources that are not complete
+    [bool]HasPending() {
+        foreach ($resource in $this) {
+            if (-not ($resource.IsComplete())) {
+                return $true;
+            }
+        }
+        return $false;
     }
 }
 
@@ -368,30 +429,30 @@ class BulkFailover{
         return $count;
     }
 
-    # Fail over all the resources in the resources list that are new or WaitingToRetry and ready for retry
+    # Fail over all the resources in the resources list that are Pending or WaitingToRetry and ready for retry
     [void]Failover() {
         $this.resources | ForEach-Object {
-            if ($_.Status -eq ([ResourceStatus]::New)) {
+            if ($_.FailoverStatus -eq ([FailoverStatus]::Pending)) {
                 $_.Failover();
-            }elseif ($_.Status -eq ([ResourceStatus]::WaitingToRetry)) {
+            }elseif ($_.FailoverStatus -eq ([FailoverStatus]::WaitingToRetry)) {
                 # check if enough time has gone by, if so, failover if the number of Attempts is less than the max
-                # if the number of Attempts has reached the max, then set the status to failed
+                # if the number of Attempts has reached the max, then set the FailoverStatus to failed
                 if ((Get-Date) -ge $_.NextAttempt) {
                     if ($_.Attempts -lt $global:MaxAttempts) {
                         $_.Failover();
                     }else{
                         Log "$($_.ResourceId) Max failover attempts reached. Failed to failover. $($_.Message)"
-                        $_.Status = [ResourceStatus]::Failed;
+                        $_.FailoverStatus = [FailoverStatus]::Failed;
                     }
                 }
             }
         }
     }
 
-    # Update the failover status of all resources that are InProgress
+    # Update the failover FailoverStatus of all resources that are InProgress
     [void]UpdateFailoverStatus() {
         $this.resources | ForEach-Object {
-            if ($_.Status -eq ([ResourceStatus]::InProgress)) {
+            if ($_.FailoverStatus -eq ([FailoverStatus]::InProgress)) {
                 $_.UpdateFailoverStatus();
             }
         }
@@ -410,18 +471,16 @@ class BulkFailover{
 
         # loop until all resources are failed or succeeded
         do {
-            # failover new or WaitingToRetry, wait for the sleep time and update status
-            Log "$(($this.resources.CountInStatus([ResourceStatus]::New))+($this.resources.CountInStatus([ResourceStatus]::WaitingToRetry))) resources to be failed over...."
+            # failover Pending or WaitingToRetry, wait for the sleep time and update FailoverStatus
+            Log "$(($this.resources.CountInStatus([FailoverStatus]::Pending))+($this.resources.CountInStatus([FailoverStatus]::WaitingToRetry))) resources to be failed over...."
             $this.Failover();
             Start-Sleep -Seconds $global:SleepTime;
             $this.UpdateFailoverStatus();
-        }while (($this.resources.CountInStatus([ResourceStatus]::New) -gt 0) `
-            -or ($this.resources.CountInStatus([ResourceStatus]::WaitingToRetry) -gt 0) `
-            -or ($this.resources.CountInStatus([ResourceStatus]::InProgress) -gt 0));
+        }while ($this.resources.HasPending());
     
-        # log the final status of the resources
+        # log the final FailoverStatus of the resources
         $end = Get-Date;
-        Log "Succeeded Failedover $($this.Resources.CountInStatus([ResourceStatus]::Succeeded)) out of $($this.Resources.Count). Process took: $($end - $start).";
+        Log "Succeeded Failedover $($this.Resources.CountInStatus([FailoverStatus]::Succeeded)) out of $($this.Resources.Count). Process took: $($end - $start).";
     }
 }
 
