@@ -22,8 +22,10 @@ function Download-AllFiles ([string]$remoteRootUri, [string]$localRootPath, [ref
   foreach ($file in $allFiles.Value) {
     $localFilePath = ''
     Download-File -remoteRootUri $remoteRootUri -remoteFile $file.File -localRootPath $localRootPath -localFilePath ([ref]$localFilePath)
-    Add-Member -InputObject $file –MemberType NoteProperty –Name LocalFilePath –Value $localFilePath
+    Add-Member -InputObject $file -NotePropertyName LocalFilePath -NotePropertyValue $localFilePath # –MemberType NoteProperty –Name LocalFilePath –Value $localFilePath
 Write-Output "(2) $($localFilePath) --- $($file.File) --- $($file.LocalFilePath)"
+$file.GetType()
+Write-Output "^^^^^^^^^^^^^^^^^^^"
   }
 }
 
