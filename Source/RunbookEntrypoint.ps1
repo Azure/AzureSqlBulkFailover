@@ -23,6 +23,7 @@ function Download-AllFiles ([string]$remoteRootUri, [string]$localRootPath, [ref
     $localFilePath = ''
     Download-File -remoteRootUri $remoteRootUri -remoteFile $file.File -localRootPath $localRootPath -localFilePath ([ref]$localFilePath)
     Add-Member -InputObject $file –MemberType NoteProperty –Name LocalFilePath –Value $localFilePath
+Write-Output "(2) $($localFilePath)"
   }
 }
 
