@@ -37,6 +37,6 @@ $scriptsToExecute = ($allFiles | ? { $_.Execute -eq $true })
 $scriptNum = 0
 foreach ($scriptToExecute in $scriptsToExecute) {
   $scriptNum++
-  Write-Output "----`r`n---- Executing $($scriptToExecute.LocalFilePath) ($($scriptNum) of $($scriptsToExecute.Length))...`r`n----"
+  Write-Output "----`r`n---- Executing $($scriptToExecute.File) ($($scriptNum) of $($scriptsToExecute.Length))...`r`n----"
   & ($scriptToExecute.LocalFilePath) -ScriptProperties $scriptToExecute
 }
