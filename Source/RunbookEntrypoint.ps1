@@ -22,7 +22,8 @@ function Download-AllFiles ([string]$remoteRootUri, [string]$localRootPath, [ref
   foreach ($file in $allFiles.Value) {
     $localFilePath = ''
     Download-File -remoteRootUri $remoteRootUri -remoteFile $file.File -localRootPath $localRootPath -localFilePath ([ref]$localFilePath)
-    Add-Member -InputObject $file -NotePropertyName LocalFilePath -NotePropertyValue $localFilePath #  MemberType NoteProperty  Name LocalFilePath  Value   }
+    Add-Member -InputObject $file -NotePropertyName LocalFilePath -NotePropertyValue $localFilePath 
+  }
 }
 
 $remoteRootUri = 'https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/main'
