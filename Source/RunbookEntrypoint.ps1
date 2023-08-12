@@ -22,11 +22,7 @@ function Download-AllFiles ([string]$remoteRootUri, [string]$localRootPath, [ref
   foreach ($file in $allFiles.Value) {
     $localFilePath = ''
     Download-File -remoteRootUri $remoteRootUri -remoteFile $file.File -localRootPath $localRootPath -localFilePath ([ref]$localFilePath)
-    Add-Member -InputObject $file -NotePropertyName LocalFilePath -NotePropertyValue $localFilePath # –MemberType NoteProperty –Name LocalFilePath –Value $localFilePath
-Write-Output "(2) $($localFilePath) --- $($file.File) --- $($file.LocalFilePath)"
-$file.GetType()
-Write-Output "^^^^^^^^^^^^^^^^^^^"
-  }
+    Add-Member -InputObject $file -NotePropertyName LocalFilePath -NotePropertyValue $localFilePath #  MemberType NoteProperty  Name LocalFilePath  Value   }
 }
 
 $remoteRootUri = 'https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/main'
@@ -41,6 +37,5 @@ $scriptNum = 0
 foreach ($scriptToExecute in $scriptsToExecute) {
   $scriptNum++
   Write-Output "----`r`n---- Executing $($scriptToExecute.LocalFilePath) ($($scriptNum) of $($scriptsToExecute.Length))...`r`n----"
-  "---> $($scriptToExecute.LocalFilePath) -ScriptProperties $($scriptToExecute)"
   & ($scriptToExecute.LocalFilePath) -ScriptProperties $scriptToExecute
 }
