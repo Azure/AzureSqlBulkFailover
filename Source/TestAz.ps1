@@ -2,8 +2,6 @@
 Write-Output "Testing Az..."
 Write-Output "Testing: Disable-AzContextAutosave -Scope Process"
 Disable-AzContextAutosave -Scope Process
-Write-Output "Testing: Connect-AzAccount"
-Connect-AzAccount
 Write-Output "Testing: Connect-AzAccount -Identity"
 $AzureContext = (Connect-AzAccount -Identity).context
 $subscriptionId = $AzureContext.Subscription
