@@ -163,7 +163,7 @@ class DatabaseResource {
                         #$lastOperation = $this.GetLastFailoverOperation();
                     }
                 }
-                elseif ($requestContent.FailoverStatus -eq "Succeeded") {
+                elseif ($requestContent.Status -eq "Succeeded") {
                     Log "$($this.ResourceId) => Successfully failed over.";
                     $this.FailoverStatus = [FailoverStatus]::Succeeded;
                 }
