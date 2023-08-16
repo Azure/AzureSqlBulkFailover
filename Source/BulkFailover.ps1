@@ -485,16 +485,19 @@ try
     # Connect to Azure with system-assigned managed identity and get the default subscriptionId
     # Ensures you do not inherit an AzContext in your runbook
     Disable-AzContextAutosave -Scope Process
-    Connect-AzAccount
     $AzureContext = (Connect-AzAccount -Identity).context
+    Log "Connected to Azure."
     $subscriptionId = $AzureContext.Subscription
     # set and store context, subscriptionId and the resource group name
     Set-AzContext -SubscriptionName $subscriptionId -DefaultProfile $AzureContext
+    Log "Obtained subscription, getting resource group..."
     # Get the resource group
     $resourceGroupName = Get-AzResourceGroup | Select-Object -ExpandProperty resourceGroupName
+    Log "Resource group is $resourceGroupName. Starting failover process..."
     # Create the bulk failover object and run the failover process
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
     $bulkFailover.Run($subscriptionId, $resourceGroupName);
+    Log "Failover process complete."
 }
 catch {
     # Complete all progress bars and write the error

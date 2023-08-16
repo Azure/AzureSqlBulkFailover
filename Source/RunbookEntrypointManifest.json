@@ -1,6 +1,6 @@
 [
     {
-        "File":  "Source/TestAz.ps1",
+        "File":  "Source/BulkFailover.ps1",
         "Execute":  true
     }
 ]
