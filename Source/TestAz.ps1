@@ -8,4 +8,6 @@ $subscriptionId = $AzureContext.Subscription
 Write-Output "Testing: Set-AzContext -SubscriptionName"
 Set-AzContext -SubscriptionName $subscriptionId -DefaultProfile $AzureContext
 Write-Output "Testing: Get-AzResourceGroup"
-Get-AzResourceGroup | Select-Object -ExpandProperty resourceGroupName
+$out = Get-AzResourceGroup | Select-Object -ExpandProperty resourceGroupName
+Write-Object $out
+Write-Output "Testing Complete."
