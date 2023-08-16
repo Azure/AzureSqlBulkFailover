@@ -1,17 +1,9 @@
 # Written by: Eduardo Rojas (eduardoro@microsoft.com) - With the help of GitHub CoPilot :)
 # Last Updated: 2023-08-03
 # Purpose: This script is used to failover all databases and elastic pools in a subscription to a secondary, already upgraded replica
-# Usage: This script is intended to be run as an Azure Automation Runbook or locally
+# Usage: This script is intended to be run as an Azure Automation Runbook only
 # Notes: This script is intended to be used to facilitate CMW customers to upgrade their databases on demand when upgrades are ready (one touch upgrade)
 # copywrite 2023 Microsoft Corporation. All rights reserved. MIT License
-
-# Get the subscriptionId and resource group name from the parameters}
-# if on a runbook then will use the default sub and resource group
-param (
-    [string] $SubscriptionId,
-    [string] $ResourceGroupName,
-    [string] $LogFileName = "BulkFailover.log"
-)
 
 # Base URI for ARM API calls, used to parse out the FailoverStatus path for the failover request
 $global:ARMBaseUri = "https://management.azure.com";
@@ -45,10 +37,6 @@ function Log($message) {
     }
     $functionName = $stack1.FunctionName
     $msg = "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) - $className.$functionName => $message";
-    # if the log file name was passed in then append (creating if needed) to the log file
-    if ($null -ne $LogFileName) {
-        $msg | Out-File -FilePath $LogFileName -Append;
-    }
     Write-Verbose "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) - $className.$functionName => $message"
 }
 #endregion
@@ -494,27 +482,16 @@ try
     Set-StrictMode -Version Latest
     $VerbosePreference = "Continue"
     Log "Starting UpgradeMeNow script. Authenticating....."
-
-    if ($env:AutomationWorker) {
-        Log "Running on azure runbook.."
-        # Connect to Azure with system-assigned managed identity and get the default subscriptionId
-        # Ensures you do not inherit an AzContext in your runbook
-        Disable-AzContextAutosave -Scope Process
-        Connect-AzAccount
-        $AzureContext = (Connect-AzAccount -Identity).context
-        $subscriptionId = $AzureContext.Subscription
-        # set and store context, subscriptionId and the resource group name
-        Set-AzContext -SubscriptionName $subscriptionId -DefaultProfile $AzureContext
-        # Get the resource group
-        $resourceGroupName = Get-AzResourceGroup | Select-Object -ExpandProperty resourceGroupName
-    }
-    else {
-        Log "Running locally.."
-        # To do this locally, you need to have the Az module installed and logged in
-        # Select the subscription 
-        Select-AzSubscription -SubscriptionId $subscriptionId
-    }
-
+    # Connect to Azure with system-assigned managed identity and get the default subscriptionId
+    # Ensures you do not inherit an AzContext in your runbook
+    Disable-AzContextAutosave -Scope Process
+    Connect-AzAccount
+    $AzureContext = (Connect-AzAccount -Identity).context
+    $subscriptionId = $AzureContext.Subscription
+    # set and store context, subscriptionId and the resource group name
+    Set-AzContext -SubscriptionName $subscriptionId -DefaultProfile $AzureContext
+    # Get the resource group
+    $resourceGroupName = Get-AzResourceGroup | Select-Object -ExpandProperty resourceGroupName
     # Create the bulk failover object and run the failover process
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
     $bulkFailover.Run($subscriptionId, $resourceGroupName);
