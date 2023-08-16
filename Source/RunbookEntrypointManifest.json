@@ -1,14 +1,6 @@
 [
     {
-        "File":  "Source/AzureSqlBulkFailover.ps1",
-        "Execute":  true
-    },
-    {
-        "File":  "Source/TestSecondScript.ps1",
-        "Execute":  true
-    },
-    {
         "File":  "Source/BulkFailover.ps1",
-        "Execute":  false
+        "Execute":  true
     }
 ]
