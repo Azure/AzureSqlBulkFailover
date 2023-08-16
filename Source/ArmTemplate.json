@@ -102,7 +102,7 @@
             "[resourceId('Microsoft.Resources/deploymentScripts', 'deleteAzureSqlBulkFailoverRunbook')]"
           ],
           "properties": {
-            "runbookType": "PowerShell",
+            "runbookType": "PowerShell7",
             "logProgress": "false",
             "logVerbose": "false",
             "description": "Triggers failover for many databases",
