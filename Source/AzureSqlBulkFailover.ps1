@@ -1,8 +1,9 @@
 # Written by: Eduardo Rojas (eduardoro@microsoft.com) - With the help of GitHub CoPilot :)
 # Last Updated: 2023-08-03
 # Purpose: This script is used to failover all databases and elastic pools in a subscription to a secondary, already upgraded replica
-# Usage: This script is intended to be run as an Azure Automation Runbook only
-# Notes: This script is intended to be used to facilitate CMW customers to upgrade their databases on demand when upgrades are ready (one touch upgrade)
+# Usage: This script is intended to be run as an Azure Automation Runbook or locally.
+# Notes: This script is intended to be used to facilitate CMW customers to upgrade their databases on demand when upgrades are ready (one touch 
+# Warning: This will failover ALL resources that the caller has access to in all subscriptions in the tenant.
 # copywrite 2023 Microsoft Corporation. All rights reserved. MIT License
 
 # Base URI for ARM API calls, used to parse out the FailoverStatus path for the failover request
@@ -24,20 +25,7 @@ enum FailoverStatus {
 
 # helper function to log messages to the console including the date, name of the calling class and method
 function Log($message) {
-    # Get the name of the calling class and method
-    $stack1 = (Get-PSCallStack)[1]
-    $variables = $stack1.GetFrameVariables();
-    $class = $variables["this"];
-    # check if we have a class, if not in main body of script
-    if ($null -ne $class)
-    {
-        $className = $class.Value.GetType().Name;
-    }else{
-        $className = "Main";
-    }
-    $functionName = $stack1.FunctionName
-    $msg = "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) - $className.$functionName => $message";
-    Write-Verbose "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) - $className.$functionName => $message"
+    Write-Verbose "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message"
 }
 #endregion
 
@@ -446,10 +434,12 @@ class BulkFailover{
         }
     }
 
-    # Add the servers in all resource groups for a subscription and return the number of resource groups found
-    [int]AddResourceGroups([string]$subscriptionId) {
+    # Add the servers in all resource groups for a subscription and return the number of servers found
+    [int]AddServersInSubscription([string]$subscriptionId) {
+        # In order to list the resource groups for a sub, we need to select the subscription first
+        Select-AzSubscription -SubscriptionId $subscriptionId;
         [int]$count = 0;
-        $resourceGroups = Get-AzResourceGroup -SubscriptionId $subscriptionId;
+        $resourceGroups = Get-AzResourceGroup;
         $resourceGroups | ForEach-Object {
             $resourceGroupName = $_.ResourceGroupName;
             Log "Adding resources for resource group $resourceGroupName in subscription $subscriptionName ($subscriptionId).";
@@ -466,12 +456,13 @@ class BulkFailover{
             $subscriptionId = $_.Id;
             $subscriptionName = $_.Name;
             Log "Adding resources for subscription $subscriptionName ($subscriptionId).";
-            $count = $this.AddResourceGroups($subscriptionId);
-            Log "Found $count resources in subscription $subscriptionName ($subscriptionId).";
+            $count = $this.AddServersInSubscription($subscriptionId);
+            Log "Found $count servers in subscription $subscriptionName ($subscriptionId).";
         }
 
-        # log the start of the failover process and the time
-        Log "Starting bulk failover of a total of $($this.resources.Count) resources in $($this.servers.Count) in $($Subscriptions.Count) subscriptions.";
+        # add the resources for all the servers and log the start of the failover process and the time
+        $count = $this.AddResources();
+        Log "Starting bulk failover of a total of $($this.resources.Count) resources in $($this.servers.Count) servers in $($Subscriptions.Count) subscriptions.";
 
         # loop until all resources are failed or succeeded
         do {
