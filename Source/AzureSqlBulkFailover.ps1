@@ -498,7 +498,7 @@ try
 {
     # Ensure we do not inherit the AzContext in the runbook
     Disable-AzContextAutosave -Scope Process
-    # Set the string variable declarations and verbose logging preference to continue so we can see the output
+    # Set the strict variable declarations and verbose logging preference to continue so we can see the output
     Set-StrictMode -Version Latest
     $VerbosePreference = "Continue"
     Log "Starting UpgradeMeNow script. Authenticating....."
@@ -507,6 +507,7 @@ try
     if ($subscriptions.Count -eq 1) {
         $subscriptionId = $subscriptions[0];
     } elseif ($subscriptions.Count -gt 1) {
+        Log "Found multiple subscriptions associated to current identity. Selecting first"
         $subscriptionId = $subscriptions | Where-Object { $_.IsDefault -eq $true }
     } else {
         Log "No subscriptions found. Exiting."
