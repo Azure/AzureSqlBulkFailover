@@ -445,12 +445,11 @@ class BulkFailover{
     # Add the servers in all resource groups for a subscription and return the number of servers found
     [int]AddServersInSubscription([string]$subscriptionId) {
         # In order to list the resource groups for a sub, we need to select the subscription first
-        Select-AzSubscription -SubscriptionId $subscriptionId;
         [int]$count = 0;
         $resourceGroups = Get-AzResourceGroup;
         $resourceGroups | ForEach-Object {
             $resourceGroupName = $_.ResourceGroupName;
-            Log "Adding resources for resource group $resourceGroupName in subscription $subscriptionName ($subscriptionId).";
+            Log "Adding resources for resource group $resourceGroupName in subscription $subscriptionId.";
             $count += $this.AddServers($subscriptionId, $resourceGroupName);
         }
         return $count;
@@ -507,7 +506,7 @@ try
     $subscriptionId = $AzureContext.Subscription
     # set and store context, subscriptionId and the resource group name
     Set-AzContext -SubscriptionName $subscriptionId -DefaultProfile $AzureContext
-    Log "Initiating Bulk Failover for the following subscriptions: $subscriptionId"
+    Log "Initiating Bulk Failover for subscription: $subscriptionId"
     # Create the bulk failover object and run the failover process
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
     $bulkFailover.Run($subscriptionId);
