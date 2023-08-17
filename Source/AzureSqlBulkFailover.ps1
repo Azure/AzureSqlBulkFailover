@@ -457,20 +457,15 @@ class BulkFailover{
     }
 
     # Main body that does the bulk failover
-    [void]Run($Subscriptions){
+    [void]Run($subscriptionId){
         $start = Get-Date;
-        # loop through all the subscriptions, getting the resource groups for each and adding the servers and resources
-        $Subscriptions | ForEach-Object {
-            $subscriptionId = $_.Id;
-            $subscriptionName = $_.Name;
-            Log "Adding resources for subscription $subscriptionName ($subscriptionId).";
-            $count = $this.AddServersInSubscription($subscriptionId);
-            Log "Found $count servers in subscription $subscriptionName ($subscriptionId).";
-        }
+        # Get the default subscription and add the resource groups for it
+        $count = $this.AddServersInSubscription($subscriptionId);
+        Log "Found $count servers in subscription $subscriptionId.";
 
         # add the resources for all the servers and log the start of the failover process and the time
         $count = $this.AddResources();
-        Log "Starting bulk failover of a total of $($this.resources.Count) resources in $($this.servers.Count) servers in $($Subscriptions.Count) subscriptions.";
+        Log "Starting bulk failover of a total of $($this.resources.Count) resources in $($this.servers.Count) servers.";
 
         # loop until all resources are failed or succeeded
         do {
@@ -509,12 +504,18 @@ try
     Log "Starting UpgradeMeNow script. Authenticating....."
     # Get the list of subscriptions
     $subscriptions = Get-AzSubscription
-    $delim = "`",`""
-    $delimitedList = "`"$($subscriptions.Name -join $delim)`""
-    Log "Initiating Bulk Failover for the following subscriptions: $delimitedList"
+    if ($subscriptions.Count -eq 1) {
+        $subscriptionId = $subscriptions[0];
+    } elseif ($subscriptions.Count -gt 1) {
+        $subscriptionId = $subscriptions | Where-Object { $_.IsDefault -eq $true }
+    } else {
+        Log "No subscriptions found. Exiting."
+        return
+    }
+    Log "Initiating Bulk Failover for the following subscriptions: $subscriptionId"
     # Create the bulk failover object and run the failover process
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
-    $bulkFailover.Run($subscriptions);
+    $bulkFailover.Run($subscriptionId);
     Log "Failover process complete."
 }
 catch {
