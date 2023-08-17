@@ -502,17 +502,11 @@ try
     Set-StrictMode -Version Latest
     $VerbosePreference = "Continue"
     Log "Starting UpgradeMeNow script. Authenticating....."
-    # Get the list of subscriptions
-    $subscriptions = Get-AzSubscription
-    if ($subscriptions.Count -eq 1) {
-        $subscriptionId = $subscriptions[0];
-    } elseif ($subscriptions.Count -gt 1) {
-        Log "Found multiple subscriptions associated to current identity. Selecting first"
-        $subscriptionId = $subscriptions | Where-Object { $_.IsDefault -eq $true }
-    } else {
-        Log "No subscriptions found. Exiting."
-        return
-    }
+    # Get the default subscription
+    $AzureContext = (Connect-AzAccount -Identity).context
+    $subscriptionId = $AzureContext.Subscription
+    # set and store context, subscriptionId and the resource group name
+    Set-AzContext -SubscriptionName $subscriptionId -DefaultProfile $AzureContext
     Log "Initiating Bulk Failover for the following subscriptions: $subscriptionId"
     # Create the bulk failover object and run the failover process
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
