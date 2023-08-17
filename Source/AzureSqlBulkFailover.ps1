@@ -493,7 +493,9 @@ try
     Log "Starting UpgradeMeNow script. Authenticating....."
     # Get the list of subscriptions
     $subscriptions = Get-AzSubscription
-    Log "Initiating Bulk Failover for the following subscriptions: $($subscriptions.Name)"
+    $delim = "`",`""
+    $delimitedList = "`"$($subscriptions.Name -join $delim)`""
+    Log "Initiating Bulk Failover for the following subscriptions: $delimitedList"
     # Create the bulk failover object and run the failover process
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
     $bulkFailover.Run($subscriptions);
