@@ -11,6 +11,7 @@ $global:ARMBaseUri = "https://management.azure.com";
 $global:MaxAttempts = 5;
 $global:RetryThrottleDelay = 5; # minutes
 $global:SleepTime = 15; # seconds
+$global:RecentFailoverTime = 20; # The time in minutes to check for a completed or in progress failover when the failover request is throttled
 
 #region Enumerations, globals and helper functions
 # enum containing resource object FailoverStatus values
@@ -30,22 +31,6 @@ function Log($message) {
 #endregion
 
 #region basic classes
-# Class that represents a FailoverDatabase or pool operation
-class FailoverOperation {
-    [FailoverStatus]$FailoverStatus # Used to store the FailoverStatus of the operation
-    [string]$FailoverStatusPath # Used to store the API path to get the FailoverStatus of the operation
-    FailoverOperation([DatabaseResource] $resource)
-    {
-        $this.FailoverStatus = $resource.FailoverStatus;
-        $this.OperationStatusPath = $resource.FailoverStatusPath;
-    }
-
-    # Function used to store the API path to get the FailoverStatus of the operation
-    [string] GetOperationStatusPath() {
-        return "dummy";
-    }
-}
-
 # Class that represents the base class for resource objects (databases and elastic pools)
 class DatabaseResource {
     [Server]$Server # The server object that contains the resource
@@ -56,7 +41,8 @@ class DatabaseResource {
     [int]$Attempts # Used to store the number of times we have tried to failover the resource
     [string]$Name # Name of the resource
     [string]$ResourceId # The id (path) of the resource
-    [bool]$ShouldFailover # Used to store if the resource will upgrade when failover is invoked (if this is false, resource will be skipped)
+    [bool]$ShouldFailover # Used to store if the resource will upgrade when failver is invoked (if this is false, resource will be skipped)
+    [bool]$RecentFailoverChecked # Used to store if the resource has been checked for a recent failover
 
     # Constructor takes a Server object, and a resource object (database or elastic pool) as returned from the API call methods 
     # and creates a resource object with the required properties to facilitate processing and querying of state
@@ -70,11 +56,89 @@ class DatabaseResource {
         $this.Name = $this.GetName($resource); 
         $this.ResourceId = $this.GetResourceId($resource);
         $this.ShouldFailover = $this.GetIsFailoverUpgrade($resource);
+        $this.RecentFailoverChecked = $false;
     }
 
     # return the URL to failover the resource (without the ARM base)
     [string]FailoverUri() {
         return "$($this.ResourceId)/failover?api-version=2021-02-01-preview";
+    }
+
+    # gets the resource ID (path) from the resource object
+    # this method is overridden in the ElasticPoolResource class to get the correct path for elastic pools
+    [string]GetResourceId([PSObject]$resource)
+    {
+        return $resource.id;
+    }
+
+    # gets the name of the resource from the resource object
+    # this method is overridden in the ElasticPoolResource class to get the correct name for elastic pools
+    [string]GetName([PSObject]$resource)
+    {
+        return $resource.name;
+    }
+
+    # Helper to get the subscription ID from the server object
+    [string]SubscriptionId() {
+        return $this.Server.SubscriptionId;
+    }
+
+    # Helper to get the resource group name from the server object
+    [string]ResourceGroupName() {
+        return $this.Server.ResourceGroupName;
+    }
+
+    # Helper to get the server name from the server object
+    [string]ServerName() {
+        return $this.Server.Name;
+    }
+
+    # Helper to get the IsActive property from the resource object 
+    [bool]GetIsActive([PSObject]$resource) {
+        return ($resource.Properties.FailoverStatus) -eq "Online";
+    }
+
+    # Helper to determine if the failover will actually invoke the UpgradeMeNow process.
+    # This is determined by whether the CurrentSku tier of the databse is not HyperScale
+    [bool]GetIsFailoverUpgrade([PSObject]$resource) {
+        return ($resource.Properties.CurrentSku.tier) -ne "Hyperscale";
+    }
+
+    # Helper to determine if the resource should be failed over
+    [bool]ShouldFailover([PSObject]$resource) {
+        # note that if the DB is inactive and then become active during the script run
+        # it will not be failed over which is fine because it will get activated on the correct upgrade domain so doesnt need to be failed over
+        return $this.GetIsFailoverUpgrade($resource) -and $this.GetIsActive($resource);
+    }
+
+    # Helper to determine if the resource failover process is complete
+    [bool]IsComplete() {
+        return ($this.FailoverStatus -eq ([FailoverStatus]::Succeeded)) -or ($this.FailoverStatus -eq ([FailoverStatus]::Failed)) -or ($this.FailoverStatus -eq ([FailoverStatus]::Skipped));
+    }
+
+    # Checks if the resource was recently failed over and sets the status to Skipped if it was
+    [void]CheckForRecentFailover(){
+        # create the filter and url to get the activity log for the resource
+        $now = (Get-Date).ToUniversalTime()
+        $startTime = $now.AddMinutes(-$global:RecentFailoverTime).ToString("yyyy-MM-ddTHH:mm:ssZ");
+        $endTime = $now.ToString("yyyy-MM-ddTHH:mm:ssZ");
+        $filter = "eventTimestamp ge '$startTime' and eventTimestamp le '$endTime' and eventChannels eq 'Admin, Operation' and resourceGroupName eq '$($this.ResourceGroupName())' and resourceId eq '$($this.ResourceId)' and levels eq 'Critical,Error,Warning,Informational'"
+        $url = "/subscriptions/$($this.SubscriptionId())/providers/microsoft.insights/eventtypes/management/values?api-version=2017-03-01-preview&`$filter=$filter"
+
+        # Get the activity log for the resource
+        $response = Invoke-AzRestMethod -Method GET -Path $url;
+        $requestContent = $response.Content | ConvertFrom-Json;
+
+        # Check if the response contains any activity log entries for recent failovers and set status to skipped if successful
+        $this.RecentFailoverChecked = $true;        
+        $failoverEntries = $requestContent.value | Where-Object {
+            (($_.authorization.action -eq "Microsoft.Sql/servers/databases/failover/action") -or
+            ($_.authorization.action -eq "Microsoft.Sql/servers/elasticpools/failover/action")) -and
+            ($_.status.value -eq "Succeeded")
+        }
+        if (($null -ne $failoverEntries) -and ($failoverEntries.Count -gt 0)) {
+            $this.FailoverStatus = [FailoverStatus]::Succeeded;
+        }
     }
 
     # Fails over the resource, updating the required request information and FailoverStatus in it
@@ -135,8 +199,8 @@ class DatabaseResource {
                     # get the last completed or inprogress failover attemps.
                     # If the last one was completed, then log that we dont need to failover this one and move it to the succeeded state.
                     # If the last one was inprogress, then log that we need to monitor this one and move it to the inprogress state and set the appropriate FailoverStatusPath.
-                    if ($this.FailoverStatus -eq ([FailoverStatus]::WaitingToRetry)) {
-                        #$lastOperation = $this.GetLastFailoverOperation();
+                    if (($this.FailoverStatus -eq ([FailoverStatus]::WaitingToRetry)) -and ($this.RecentFailoverChecked -eq $false)){
+                        $this.CheckForRecentFailover();
                     }
                 }
                 elseif ($requestContent.Status -eq "Succeeded") {
@@ -151,64 +215,7 @@ class DatabaseResource {
                 $this.Message = $response.Content;
             }
         }
-    }
-
-    # gets the resource ID (path) from the resource object
-    # this method is overridden in the ElasticPoolResource class to get the correct path for elastic pools
-    [string]GetResourceId([PSObject]$resource)
-    {
-        return $resource.id;
-    }
-
-    # gets the name of the resource from the resource object
-    # this method is overridden in the ElasticPoolResource class to get the correct name for elastic pools
-    [string]GetName([PSObject]$resource)
-    {
-        return $resource.name;
-    }
-
-    # Helper to get the subscription ID from the server object
-    [string]SubscriptionId() {
-        return $this.Server.SubscriptionId;
-    }
-
-    # Helper to get the resource group name from the server object
-    [string]ResourceGroupName() {
-        return $this.Server.ResourceGroupName;
-    }
-
-    # Helper to get the server name from the server object
-    [string]ServerName() {
-        return $this.Server.Name;
-    }
-
-    # Helper to get the IsActive property from the resource object 
-    [bool]GetIsActive([PSObject]$resource) {
-        return ($resource.Properties.FailoverStatus) -eq "Online";
-    }
-
-    # Helper to determine if the failover will actually invoke the UpgradeMeNow process.
-    # This is determined by whether the CurrentSku tier of the databse is not HyperScale
-    [bool]GetIsFailoverUpgrade([PSObject]$resource) {
-        return ($resource.Properties.CurrentSku.tier) -ne "Hyperscale";
-    }
-
-    # Helper to determine if the resource should be failed over
-    [bool]ShouldFailover([PSObject]$resource) {
-        # note that if the DB is inactive and then become active during the script run
-        # it will not be failed over which is fine because it will get activated on the correct upgrade domain so doesnt need to be failed over
-        return $this.GetIsFailoverUpgrade($resource) -and $this.GetIsActive($resource);
-    }
-
-    # Helper to determine if the resource failover process is complete
-    [bool]IsComplete() {
-        return ($this.FailoverStatus -eq ([FailoverStatus]::Succeeded)) -or ($this.FailoverStatus -eq ([FailoverStatus]::Failed)) -or ($this.FailoverStatus -eq ([FailoverStatus]::Skipped));
-    }
-
-    [FailoverOperation]GetLastFailoverOperation(){
-        return [FailoverOperation]::new();
-
-    }
+    }   
 }
 
 # Class that represents an elastic pool resource, 
@@ -262,6 +269,7 @@ class Server{
 }
 
 #endregion
+
 #region List classes
 # Class that represents a list of resources and associated helper methods
 # Note that the base class for all resources is DatabaseResource
@@ -467,8 +475,11 @@ class BulkFailover{
         # loop until all resources are failed or succeeded
         do {
             # failover Pending or WaitingToRetry, wait for the sleep time and update FailoverStatus
-            Log "$(($this.resources.CountInStatus([FailoverStatus]::Pending))+($this.resources.CountInStatus([FailoverStatus]::WaitingToRetry))) resources to be failed over...."
+            $toFailoverCount = ($this.resources.CountInStatus([FailoverStatus]::Pending))+($this.resources.CountInStatus([FailoverStatus]::WaitingToRetry))
+            Log "$toFailoverCount resources to be failed over...."
             $this.Failover();
+            $inProgressCount = ($this.resources.CountInStatus([FailoverStatus]::InProgress))
+            Log "$inProgressCount resources in progress.... "
             Start-Sleep -Seconds $global:SleepTime;
             $this.UpdateFailoverStatus();
         }while ($this.resources.HasPending());
@@ -476,6 +487,11 @@ class BulkFailover{
         # log the final FailoverStatus of the resources
         $end = Get-Date;
         Log "Succesfully failedover $($this.Resources.CountInStatus([FailoverStatus]::Succeeded)) out of $($this.Resources.Count) resources. Process took: $($end - $start).";
+        if ($this.Resources.CountInStatus([FailoverStatus]::Failed) -gt 0) {
+            Log "Failed to failover $($this.Resources.CountInStatus([FailoverStatus]::Failed)) eligable resources. Retry or contact system administrator for support.";
+        }else{
+            Log "All eligable resources failed over successfully.";
+        }
     }
 }
 
