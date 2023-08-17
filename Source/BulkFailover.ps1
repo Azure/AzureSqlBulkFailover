@@ -446,16 +446,31 @@ class BulkFailover{
         }
     }
 
-    # Main body that does the bulk failover
-    [void]Run([string] $SubscriptionId, [string] $ResourceGroupName) {
-        # log the start of the failover process and the time
-        $start = Get-Date;
-        Log "Starting bulk failover of all resources in resource group $ResourceGroupName in subscription $SubscriptionId."
+    # Add the servers in all resource groups for a subscription and return the number of resource groups found
+    [int]AddResourceGroups([string]$subscriptionId) {
+        [int]$count = 0;
+        $resourceGroups = Get-AzResourceGroup -SubscriptionId $subscriptionId;
+        $resourceGroups | ForEach-Object {
+            $resourceGroupName = $_.ResourceGroupName;
+            Log "Adding resources for resource group $resourceGroupName in subscription $subscriptionName ($subscriptionId).";
+            $count += $this.AddServers($subscriptionId, $resourceGroupName);
+        }
+        return $count;
+    }
 
-        # add the servers and resources
-        $this.AddServers($SubscriptionId, $ResourceGroupName);
-        $this.AddResources();
-        Log "Found $($this.resources.Count) resources in $($this.servers.Count) servers to be failed over."
+    # Main body that does the bulk failover
+    [void]Run($Subscriptions){
+        $start = Get-Date;
+        # loop through all the subscriptions, getting the resource groups for each and adding the servers and resources
+        $Subscriptions | ForEach-Object {
+            $subscriptionId = $_.Id;
+            $subscriptionName = $_.Name;
+            Log "Adding resources for subscription $subscriptionName ($subscriptionId).";
+            AddResourceGroups($subscriptionId);
+        }
+
+        # log the start of the failover process and the time
+        Log "Starting bulk failover of a total of $($this.resources.Count) resources in $($this.servers.Count) in $($Subscriptions.Count) subscriptions.";
 
         # loop until all resources are failed or succeeded
         do {
@@ -468,7 +483,7 @@ class BulkFailover{
     
         # log the final FailoverStatus of the resources
         $end = Get-Date;
-        Log "Succeeded Failedover $($this.Resources.CountInStatus([FailoverStatus]::Succeeded)) out of $($this.Resources.Count). Process took: $($end - $start).";
+        Log "Succesfully failedover $($this.Resources.CountInStatus([FailoverStatus]::Succeeded)) out of $($this.Resources.Count) resources. Process took: $($end - $start).";
     }
 }
 
@@ -478,25 +493,18 @@ class BulkFailover{
 # Main method that runs the script to failover all databases and elastic pools in a resource group
 try
 {
+    # Ensure we do not inherit the AzContext in the runbook
+    Disable-AzContextAutosave -Scope Process
     # Set the string variable declarations and verbose logging preference to continue so we can see the output
     Set-StrictMode -Version Latest
     $VerbosePreference = "Continue"
     Log "Starting UpgradeMeNow script. Authenticating....."
-    # Connect to Azure with system-assigned managed identity and get the default subscriptionId
-    # Ensures you do not inherit an AzContext in your runbook
-    Disable-AzContextAutosave -Scope Process
-    $AzureContext = (Connect-AzAccount -Identity).context
-    Log "Connected to Azure."
-    $subscriptionId = $AzureContext.Subscription
-    # set and store context, subscriptionId and the resource group name
-    Set-AzContext -SubscriptionName $subscriptionId -DefaultProfile $AzureContext
-    Log "Obtained subscription, getting resource group..."
-    # Get the resource group
-    $resourceGroupName = Get-AzResourceGroup | Select-Object -ExpandProperty resourceGroupName
-    Log "Resource group is $resourceGroupName. Starting failover process..."
+    # Get the list of subscriptions
+    $subscriptions = Get-AzSubscription
+    Log "Initiating Bulk Failover for the following subscriptions: $($subscriptions.Name)"
     # Create the bulk failover object and run the failover process
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
-    $bulkFailover.Run($subscriptionId, $resourceGroupName);
+    $bulkFailover.Run($subscriptions);
     Log "Failover process complete."
 }
 catch {
