@@ -466,7 +466,8 @@ class BulkFailover{
             $subscriptionId = $_.Id;
             $subscriptionName = $_.Name;
             Log "Adding resources for subscription $subscriptionName ($subscriptionId).";
-            AddResourceGroups($subscriptionId);
+            $count = $this.AddResourceGroups($subscriptionId);
+            Log "Found $count resources in subscription $subscriptionName ($subscriptionId).";
         }
 
         # log the start of the failover process and the time
