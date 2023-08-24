@@ -315,19 +315,32 @@ class ResourceList : System.Collections.Generic.List[object]{
         # create a hashtable to store the unique resources in
         # the resources failoverkey ensures we only add resources we can failover to the list
         $url = [ResourceList]::ResourceListUrl($server)
-        $response = Invoke-AzRestMethod -Method GET -Path $url;
+        # loop while $url is not null
         $resourcesToAdd = New-Object -TypeName System.Collections.Hashtable
-        $content = ($response.Content | ConvertFrom-Json).value;
-        $content | ForEach-Object {
-            # create q resource object and add it to the hashtable using the failoverkey as the key
-            # ensure we only create and add one resource foreeach key value
-            $key = [ResourceList]::FailoverKey($_);
-            if (-not $resourcesToAdd.ContainsKey($key)) {
-                $resource = [ResourceList]::CreateResource($server, $_);
-                $resourcesToAdd[$key] = $resource;
-                $this.Add($resource);
+        do {
+            $response = Invoke-AzRestMethod -Method GET -Path $url;
+            $content = ($response.Content | ConvertFrom-Json).value;
+            $content | ForEach-Object {
+                # create q resource object and add it to the hashtable using the failoverkey as the key
+                # ensure we only create and add one resource foreeach key value
+                $key = [ResourceList]::FailoverKey($_);
+                if (-not $resourcesToAdd.ContainsKey($key)) {
+                    $resource = [ResourceList]::CreateResource($server, $_);
+                    $resourcesToAdd[$key] = $resource;
+                    $this.Add($resource);
+                }
+            } 
+            # get the next page of results if there is one
+            # check if the content has a nextLink property, if so, get the next page of results
+            $url = $null;
+            # convert the response content to a PSObject and check if it has a nextLink property
+            $responseObject = $response.Content | ConvertFrom-Json;
+            if ($responseObject | Get-Member -Name "nextLink" -MemberType "NoteProperty") {
+                $url = $responseObject.nextLink;
+                # remove the ARM base from the url
+                $url = $url -replace [regex]::Escape($($global:ARMBaseUri)), "";
             }
-        }    
+        } while ($null -ne $url);
         return $resourcesToAdd.Count;
     }
 
