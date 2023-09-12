@@ -1,3 +1,11 @@
+
+param(
+    [Parameter(Mandatory=$true)]
+    [string]$subscriptionId,
+    [Parameter(Mandatory=$true)]
+    [string]$resourceGroupName
+)
+
 $scriptStartTime = (Get-Date).ToUniversalTime().ToString("o")
 Write-Output "Executing RunbookEntrypoint.ps1 with PS ver $($PSVersionTable.PSVersion) at $($scriptStartTime) on $($env:COMPUTERNAME) as $($env:USERNAME)"
 

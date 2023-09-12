@@ -5,6 +5,13 @@
 # Notes: This script is intended to be used to facilitate CMW customers to upgrade their databases on demand when upgrades are ready (one touch 
 # Warning: This will failover ALL resources that the caller has access to in all subscriptions in the tenant.
 # copywrite 2023 Microsoft Corporation. All rights reserved. MIT License
+#Read input parameters subscriptionId and ResourceGroup
+param(
+    [Parameter(Mandatory=$true)]
+    [string]$subscriptionId,
+    [Parameter(Mandatory=$true)]
+    [string]$resourceGroupName
+)
 
 # Base URI for ARM API calls, used to parse out the FailoverStatus path for the failover request
 $global:ARMBaseUri = "https://management.azure.com";
@@ -321,7 +328,7 @@ class ResourceList : System.Collections.Generic.List[object]{
             $response = Invoke-AzRestMethod -Method GET -Path $url;
             $content = ($response.Content | ConvertFrom-Json).value;
             $content | ForEach-Object {
-                # create q resource object and add it to the hashtable using the failoverkey as the key
+                # create a resource object and add it to the hashtable using the failoverkey as the key
                 # ensure we only create and add one resource foreeach key value
                 $key = [ResourceList]::FailoverKey($_);
                 if (-not $resourcesToAdd.ContainsKey($key)) {
@@ -469,10 +476,10 @@ class BulkFailover{
     }
 
     # Main body that does the bulk failover
-    [void]Run($subscriptionId){
+    [void]Run($subscriptionId, $resourceGroupName){
         $start = Get-Date;
         # Get the default subscription and add the resource groups for it
-        $count = $this.AddServersInSubscription($subscriptionId);
+        $count = $this.AddServers($subscriptionId, $resourceGroupName);
         Log "Found $count servers in subscription $subscriptionId.";
 
         # add the resources for all the servers and log the start of the failover process and the time
@@ -522,7 +529,7 @@ try
     Log "Initiating Bulk Failover for subscription: $subscriptionId"
     # Create the bulk failover object and run the failover process
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
-    $bulkFailover.Run($subscriptionId);
+    $bulkFailover.Run($subscriptionId, $resourceGroupName);
     Log "Failover process complete."
 }
 catch {
