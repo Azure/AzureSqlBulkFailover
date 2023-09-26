@@ -37,7 +37,7 @@ enum FailoverStatus {
 
 # helper function to log messages to the console including the date, name of the calling class and method
 function Log($message) {
-    Write-Verbose "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message"
+    Write-Output "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message"
 }
 #endregion
 
