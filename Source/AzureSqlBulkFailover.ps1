@@ -533,7 +533,7 @@ class BulkFailover{
 try
 {
     # Ensure we do not inherit the AzContext in the runbook
-    Disable-AzContextAutosave -Scope Process
+    Disable-AzContextAutosave -Scope Process | Out-Null
     # Set the strict variable declarations and verbose logging preference to continue so we can see the output
     Set-StrictMode -Version Latest
     $VerbosePreference = "Continue"
