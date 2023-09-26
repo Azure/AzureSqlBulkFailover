@@ -68,5 +68,5 @@ foreach ($scriptToExecute in $scriptsToExecute) {
   $scriptNum++
   Write-Output "----`r`n---- Executing $($scriptToExecute.File) ($($scriptNum) of $($scriptsToExecute.Length))...`r`n----"
   $scriptToExecute | Format-List -Property *
-  & ($scriptToExecute.LocalFilePath) -ScriptProperties $scriptToExecute
+  & ($scriptToExecute.LocalFilePath) -ScriptProperties $scriptToExecute -SubscriptionId $SubscriptionId -LogicalServerName $LogicalServerName
 }
