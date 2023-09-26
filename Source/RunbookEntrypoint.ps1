@@ -1,9 +1,28 @@
+<#
+  .SYNOPSIS
+  Provides fast failover for a large set of Azure SQL databases. 
+
+  .DESCRIPTION
+  Provides fast failover for a large set of Azure SQL databases.
+
+  .PARAMETER SubscriptionId
+  Specifies the subscription that contains the target databases. If empty, the subscription that contains this runbook will be assumed. 
+
+  .PARAMETER ServerName
+  Specifies the name of the logical server that contains the target databases. If empty, all logical servers in the target subscription will be targeted. 
+
+  .INPUTS
+  None. You can't pipe objects to this script.
+
+  .OUTPUTS
+  Output messages intended for user interface, for compatibility with Azure Automation. 
+#>
 
 param(
     [Parameter(Mandatory=$true)]
-    [string]$subscriptionId,
+    [string]$SubscriptionId = "",
     [Parameter(Mandatory=$true)]
-    [string]$resourceGroupName
+    [string]$LogicalServerName = ""
 )
 
 $scriptStartTime = (Get-Date).ToUniversalTime().ToString("o")
