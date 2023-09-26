@@ -508,7 +508,7 @@ class BulkFailover{
             # failover Pending or WaitingToRetry, wait for the sleep time and update FailoverStatus
             $toFailoverCount = ($this.resources.CountInStatus([FailoverStatus]::Pending))+($this.resources.CountInStatus([FailoverStatus]::WaitingToRetry))
             Log "$toFailoverCount resources to be failed over...."
-####            $this.Failover();
+            $this.Failover();
             $inProgressCount = ($this.resources.CountInStatus([FailoverStatus]::InProgress))
             Log "$inProgressCount resources in progress.... "
             Start-Sleep -Seconds $global:SleepTime;
