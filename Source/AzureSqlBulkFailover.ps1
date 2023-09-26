@@ -23,6 +23,7 @@ $global:MaxAttempts = 5;
 $global:RetryThrottleDelay = 5; # minutes
 $global:SleepTime = 15; # seconds
 $global:RecentFailoverTime = 20; # The time in minutes to check for a completed or in progress failover when the failover request is throttled
+$global:OutputMessages = @()
 
 #region Enumerations, globals and helper functions
 # enum containing resource object FailoverStatus values
@@ -37,7 +38,9 @@ enum FailoverStatus {
 
 # helper function to log messages to the console including the date, name of the calling class and method
 function Log($message) {
-    Write-Output "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message"
+    $outputMessage = "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message"
+    Write-Verbose $outputMessage
+    $global:OutputMessages += $message
 }
 #endregion
 
@@ -487,7 +490,10 @@ class BulkFailover{
 
     # Main body that does the bulk failover
     [void]Run($subscriptionId, $resourceGroupName, $logicalServerName){
+        Write-Output "BulkFailover.Run() 2"
+        Log "BulkFailover.Run() 2"
         $start = Get-Date;
+        Log "BulkFailover.Run($subscriptionId, $resourceGroupName, $logicalServerName)"
         
         # Get the default subscription and add the resource groups for it
         if ([String]::IsNullOrEmpty($resourceGroupName)) {
@@ -537,14 +543,14 @@ try
     # Set the strict variable declarations and verbose logging preference to continue so we can see the output
     Set-StrictMode -Version Latest
     $VerbosePreference = "Continue"
-    Write-Output "Starting UpgradeMeNow script for sub '$($SubscriptionId)', resource group '$($ResourceGroupName)', server '$($LogicalServerName)'. Authenticating....."
+    Log "Starting AzureSqlBulkFailover.ps1: sub '$($SubscriptionId)', resource group '$($ResourceGroupName)', server '$($LogicalServerName)'. Authenticating....."
 
     if ([String]::IsNullOrEmpty($SubscriptionId)) {
         $AzureContext = (Connect-AzAccount -Identity).context
         $subscriptionId = $AzureContext.Subscription
-        Write-Output "Using context subscription $subscriptionId"
+        Log "Using context subscription $subscriptionId"
     } else {
-        Write-Output "Using explicit subscription $subscriptionId"
+        Log "Using explicit subscription $subscriptionId"
         $subscriptionId = $SubscriptionId
         $AzureContext = (Connect-AzAccount -Identity -Subscription $subscriptionId).context
     }
@@ -552,9 +558,10 @@ try
     # set and store context, subscriptionId and the resource group name
     Set-AzContext -SubscriptionName $subscriptionId -DefaultProfile $AzureContext
 
-    Log "Initiating Bulk Failover for subscription: $subscriptionId"
     # Create the bulk failover object and run the failover process
+    Log "Creating BulkFailover"
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
+    Log "Initiating bulk failover for subscription: $subscriptionId"
     $bulkFailover.Run($subscriptionId, $ResourceGroupName, $LogicalServerName);
     Log "Failover process complete."
 }
@@ -563,4 +570,9 @@ catch {
     Write-Error -Message $_.Exception
     throw $_.Exception
 }
+finally {
+  Write-Output "==== Full output:"
+  $global:OutputMessages
+}
+
 #endregion
