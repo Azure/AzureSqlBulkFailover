@@ -10,9 +10,11 @@ param(
     [Parameter(Mandatory=$false)]
     [PSCustomObject]$ScriptProperties,
     [Parameter(Mandatory=$false)]
-    [string]$subscriptionId,
+    [string]$SubscriptionId,
     [Parameter(Mandatory=$false)]
-    [string]$resourceGroupName
+    [string]$LogicalServerName
+    [Parameter(Mandatory=$false)]
+    [string]$ResourceGroupName
 )
 
 # Base URI for ARM API calls, used to parse out the FailoverStatus path for the failover request
@@ -382,14 +384,17 @@ class ServerList : System.Collections.Generic.List[object]{
         return "/subscriptions/$subscriptionId/resourcegroups/$resourceGroupName/providers/Microsoft.Sql/servers?api-version=2021-02-01-preview";
     }
 
-    # Adds the list of servers in a subscriptions resource group to this list
-    [int]AddServers([string]$subscriptionId, [string]$resourceGroupName) {
+    # Adds the list of servers in a subscriptions resource group to this list. If no logical server name is provided, all logical servers 
+    # are enumerated. If $logicalServerName is provided, the method serves to discover the logical server's resource group. 
+    [int]AddServers([string]$subscriptionId, [string]$resourceGroupName, [string]$logicalServerName) {
         $url = $this.ServerListUrl($subscriptionId,$resourceGroupName)
         $response = Invoke-AzRestMethod -Method GET -Path $url;
         $content = ($response.Content | ConvertFrom-Json).value;
         [int]$count = 0;
         $content | ForEach-Object {
-            $this.Add([Server]::new($_));
+            if ([String]::IsNullOrEmpty($logicalServerName) -or ($_.name -eq $logicalServerName)) {
+                $this.Add([Server]::new($_));
+            }
             $count++;
         }
         return $count;
@@ -478,10 +483,16 @@ class BulkFailover{
     }
 
     # Main body that does the bulk failover
-    [void]Run($subscriptionId, $resourceGroupName){
+    [void]Run($subscriptionId, $resourceGroupName, $logicalServerName){
         $start = Get-Date;
+        
         # Get the default subscription and add the resource groups for it
-        $count = $this.AddServers($subscriptionId, $resourceGroupName);
+        if ([String]::IsNullOrEmpty($resourceGroupName)) {
+            $count = $this.AddServersInSubscription($subscriptionId);
+        } else {
+            $count = $this.AddServers($subscriptionId, $resourceGroupName);
+        }
+        
         Log "Found $count servers in subscription $subscriptionId.";
 
         # add the resources for all the servers and log the start of the failover process and the time
@@ -493,7 +504,7 @@ class BulkFailover{
             # failover Pending or WaitingToRetry, wait for the sleep time and update FailoverStatus
             $toFailoverCount = ($this.resources.CountInStatus([FailoverStatus]::Pending))+($this.resources.CountInStatus([FailoverStatus]::WaitingToRetry))
             Log "$toFailoverCount resources to be failed over...."
-            $this.Failover();
+####            $this.Failover();
             $inProgressCount = ($this.resources.CountInStatus([FailoverStatus]::InProgress))
             Log "$inProgressCount resources in progress.... "
             Start-Sleep -Seconds $global:SleepTime;
@@ -523,15 +534,21 @@ try
     Set-StrictMode -Version Latest
     $VerbosePreference = "Continue"
     Log "Starting UpgradeMeNow script. Authenticating....."
-    # Get the default subscription
     $AzureContext = (Connect-AzAccount -Identity).context
-    $subscriptionId = $AzureContext.Subscription
+
+    if ([String]::IsNullOrEmpty($SubscriptionId)) {
+        $subscriptionId = $AzureContext.Subscription
+    } else {
+        $subscriptionId = $SubscriptionId
+    }
+
     # set and store context, subscriptionId and the resource group name
     Set-AzContext -SubscriptionName $subscriptionId -DefaultProfile $AzureContext
+
     Log "Initiating Bulk Failover for subscription: $subscriptionId"
     # Create the bulk failover object and run the failover process
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
-    $bulkFailover.Run($subscriptionId, $resourceGroupName);
+    $bulkFailover.Run($subscriptionId, $ResourceGroupName, $LogicalServerName);
     Log "Failover process complete."
 }
 catch {
