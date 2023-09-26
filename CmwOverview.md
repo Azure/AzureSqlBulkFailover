@@ -51,20 +51,26 @@ at the desired time. Then return to this page and continue with **Step 3**._
     * For Azure SQL Managed Instances, the account must belong to the _Subscription Owner_ or _Managed Instance Contributor_ roles. 
 1. In the toolbar to the upper right, click the Cloud Shell icon ![CloudShellIcon.png](/Media/CloudShellIcon.png). 
    * Cloud Shell requires a storage account. If you have never used Cloud Shell before, on the first use you will be prompted to create or select a storage account. For more information, see [Persist files in Azure Cloud Shell](https://learn.microsoft.com/en-us/azure/cloud-shell/persisting-shell-storage).
-1. Run this command to upgrade a database that is NOT part of an elastic pool or a managed instance: 
+1. Set the shell's context to the subscription that contains the databases:
     ```
-    Invoke-AzSqlDatabaseFailover -ResourceGroupName <resource group name> -ServerName <SQL server name> -DatabaseName <database name>
+    Set-AzContext -Subscription <subscription_guid>
     ```
-    Run this command to upgrade the databases in an elastic pool: 
-    ```
-    Invoke-AzSqlElasticPoolFailover -ResourceGroupName <resource group name> -ServerName <SQL server name> -ElasticPoolName <elastic pool>
-    ```
-    Or, run this command to upgrade a managed instance: 
-    ```
-    Invoke-AzSqlInstanceFailover -ResourceGroupName <resource group name> -Name <managed instance name>
-    ```
+1. Run a failover command to upgrade each managed instance, database or elastic pool: 
+    * Run this command to upgrade a database that is NOT part of an elastic pool or a managed instance: 
+      ```
+      Invoke-AzSqlDatabaseFailover -ResourceGroupName <resource group name> -ServerName <SQL server name> -DatabaseName <database name>
+      ```
+    * Run this command to upgrade the databases in an elastic pool: 
+      ```
+      Invoke-AzSqlElasticPoolFailover -ResourceGroupName <resource group name> -ServerName <SQL server name> -ElasticPoolName <elastic pool>
+      ```
+    * Or, run this command to upgrade a managed instance: 
+      ```
+      Invoke-AzSqlInstanceFailover -ResourceGroupName <resource group name> -Name <managed instance name>
+      ```
 
 The upgrade will require from a few seconds to a minute or two per database or pool. When the command completes, the upgrade of that database or pool of databases is complete. 
+There is no output if the operation is successful. You will receive an error if the operation fails. 
 
 ----
 
@@ -113,4 +119,4 @@ To provide a consistent experience for all customers, the system returns this er
 * Cross-Ring and Cross-Region Maintenance Coordination
 * FAQ: 
    * Support/escalation process if there are any surprises
-* Move this to customer-visible repository and update aka short link. 
+* Update aka short link. 

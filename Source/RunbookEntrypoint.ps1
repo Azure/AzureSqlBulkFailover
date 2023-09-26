@@ -1,9 +1,28 @@
+<#
+  .SYNOPSIS
+  Provides fast failover for a large set of Azure SQL databases. 
+
+  .DESCRIPTION
+  Provides fast failover for a large set of Azure SQL databases.
+
+  .PARAMETER SubscriptionId
+  Specifies the subscription that contains the target databases. If omitted, the subscription that contains this runbook will be assumed. 
+
+  .PARAMETER ServerName
+  Specifies the name of the logical server that contains the target databases. If omitted, all logical servers in the target subscription will be targeted. 
+
+  .INPUTS
+  None. You can't pipe objects to this script.
+
+  .OUTPUTS
+  Output messages intended for user interface, for compatibility with Azure Automation. 
+#>
 
 param(
-    [Parameter(Mandatory=$true)]
-    [string]$subscriptionId,
-    [Parameter(Mandatory=$true)]
-    [string]$resourceGroupName
+    [Parameter(Mandatory=$false)]
+    [string]$SubscriptionId,
+    [Parameter(Mandatory=$false)]
+    [string]$LogicalServerName
 )
 
 $scriptStartTime = (Get-Date).ToUniversalTime().ToString("o")
@@ -31,6 +50,8 @@ function Download-AllFiles ([string]$remoteRootUri, [string]$localRootPath, [ref
     $localFilePath = ''
     Download-File -remoteRootUri $remoteRootUri -remoteFile $file.File -localRootPath $localRootPath -localFilePath ([ref]$localFilePath)
     Add-Member -InputObject $file -NotePropertyName LocalFilePath -NotePropertyValue $localFilePath 
+    Add-Member -InputObject $file -NotePropertyName SubscriptionId -NotePropertyValue $SubscriptionId
+    Add-Member -InputObject $file -NotePropertyName ServerName -NotePropertyValue $ServerName
   }
 }
 
@@ -46,5 +67,6 @@ $scriptNum = 0
 foreach ($scriptToExecute in $scriptsToExecute) {
   $scriptNum++
   Write-Output "----`r`n---- Executing $($scriptToExecute.File) ($($scriptNum) of $($scriptsToExecute.Length))...`r`n----"
+  $scriptToExecute | Format-List -Property *
   & ($scriptToExecute.LocalFilePath) -ScriptProperties $scriptToExecute
 }
