@@ -4,12 +4,14 @@
 # Usage: This script is intended to be run as an Azure Automation Runbook or locally.
 # Notes: This script is intended to be used to facilitate CMW customers to upgrade their databases on demand when upgrades are ready (one touch 
 # Warning: This will failover ALL resources that the caller has access to in all subscriptions in the tenant.
-# copywrite 2023 Microsoft Corporation. All rights reserved. MIT License
+# Copyright 2023 Microsoft Corporation. All rights reserved. MIT License
 #Read input parameters subscriptionId and ResourceGroup
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory=$false)]
+    [PSCustomObject]$ScriptProperties,
+    [Parameter(Mandatory=$false)]
     [string]$subscriptionId,
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory=$false)]
     [string]$resourceGroupName
 )
 
