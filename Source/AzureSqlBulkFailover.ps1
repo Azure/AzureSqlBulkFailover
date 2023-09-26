@@ -12,7 +12,7 @@ param(
     [Parameter(Mandatory=$false)]
     [string]$SubscriptionId,
     [Parameter(Mandatory=$false)]
-    [string]$LogicalServerName
+    [string]$LogicalServerName,
     [Parameter(Mandatory=$false)]
     [string]$ResourceGroupName
 )
