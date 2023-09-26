@@ -50,6 +50,8 @@ function Download-AllFiles ([string]$remoteRootUri, [string]$localRootPath, [ref
     $localFilePath = ''
     Download-File -remoteRootUri $remoteRootUri -remoteFile $file.File -localRootPath $localRootPath -localFilePath ([ref]$localFilePath)
     Add-Member -InputObject $file -NotePropertyName LocalFilePath -NotePropertyValue $localFilePath 
+    Add-Member -InputObject $file -NotePropertyName SubscriptionId -NotePropertyValue $SubscriptionId
+    Add-Member -InputObject $file -NotePropertyName ServerName -NotePropertyValue $ServerName
   }
 }
 
@@ -65,5 +67,7 @@ $scriptNum = 0
 foreach ($scriptToExecute in $scriptsToExecute) {
   $scriptNum++
   Write-Output "----`r`n---- Executing $($scriptToExecute.File) ($($scriptNum) of $($scriptsToExecute.Length))...`r`n----"
+  $scriptToExecute | Format-List -Property *
+  Write-Output "---- $scriptToExecute
   & ($scriptToExecute.LocalFilePath) -ScriptProperties $scriptToExecute
 }
