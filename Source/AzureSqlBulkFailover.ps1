@@ -42,6 +42,37 @@ function Log($message) {
 #endregion
 
 #region basic classes
+
+# Class that represents the information for a server and associated helper methods
+class Server{
+    [string]$SubscriptionId # Subscription ID for the server
+    [string]$ResourceGroupName # Resource group name for the server
+    [string]$Name # Name of the server
+
+    # Constructor takes a server response object as returned from the API call methods 
+    # and creates a server object with the required properties to facilitate processing and querying of state
+    Server([PSObject]$server) {
+        $this.SubscriptionId = $this.GetSubscriptionId($server);
+        $this.ResourceGroupName = $this.GetResourceGroupName($server);
+        $this.Name = $this.GetName($server);
+    }
+
+    # Helper to get the subscription ID from the server respose object
+    [string]GetSubscriptionId([PSObject]$server) {
+        return $server.id.Split("/")[2];
+    }
+
+    # Helper to get the resource group name from the server response object
+    [string]GetResourceGroupName([PSObject]$server) {
+        return $server.id.Split("/")[4];
+    }
+
+    # Helper to get the name of the server from the server response object
+    [string]GetName([PSObject]$server) {
+        return $server.name;
+    }
+}
+
 # Class that represents the base class for resource objects (databases and elastic pools)
 class DatabaseResource {
     [Server]$Server # The server object that contains the resource
@@ -249,36 +280,6 @@ class ElasticPoolResource : DatabaseResource{
     }
 }
 
-# Class that represents the information for a server and associated helper methods
-class Server{
-    [string]$SubscriptionId # Subscription ID for the server
-    [string]$ResourceGroupName # Resource group name for the server
-    [string]$Name # Name of the server
-
-    # Constructor takes a server response object as returned from the API call methods 
-    # and creates a server object with the required properties to facilitate processing and querying of state
-    Server([PSObject]$server) {
-        $this.SubscriptionId = $this.GetSubscriptionId($server);
-        $this.ResourceGroupName = $this.GetResourceGroupName($server);
-        $this.Name = $this.GetName($server);
-    }
-
-    # Helper to get the subscription ID from the server respose object
-    [string]GetSubscriptionId([PSObject]$server) {
-        return $server.id.Split("/")[2];
-    }
-
-    # Helper to get the resource group name from the server response object
-    [string]GetResourceGroupName([PSObject]$server) {
-        return $server.id.Split("/")[4];
-    }
-
-    # Helper to get the name of the server from the server response object
-    [string]GetName([PSObject]$server) {
-        return $server.name;
-    }
-}
-
 #endregion
 
 #region List classes
@@ -416,9 +417,11 @@ class BulkFailover{
 
     # Adds a list of servers to the servers list using the subscriptionId and resource group name
     # returns the number of servers added
-    [int]AddServers([string]$subscriptionId, [string]$resourceGroupName) {
-        $serversAdded = $this.servers.AddServers($subscriptionId, $resourceGroupName);
-        Log "Found $serversAdded servers in resource group $resourceGroupName in subscription $subscriptionId.";
+    [int]AddServers([string]$subscriptionId, [string]$resourceGroupName, [string]$logicalServerName) {
+        $serversAdded = $this.servers.AddServers($subscriptionId, $resourceGroupName, $logicalServerName);
+        if ($serversAdded -gt 0) { 
+            Log "Found $serversAdded servers in resource group $resourceGroupName in subscription $subscriptionId.";
+        }
         return $serversAdded;
     }
 
@@ -426,7 +429,7 @@ class BulkFailover{
     # returns the number of resources added
     [int]AddServerResources($server) {
         $count = $this.resources.AddResources($server);
-        Log "Found $count resources server $($server.Name) in resource group $($server.ResourceGroupName) in subscription $($server.SubscriptionId)";
+        Log "Found $count resources in server $($server.Name) in resource group $($server.ResourceGroupName) in subscription $($server.SubscriptionId)";
         return $count;
     }
 
@@ -470,14 +473,14 @@ class BulkFailover{
     }
 
     # Add the servers in all resource groups for a subscription and return the number of servers found
-    [int]AddServersInSubscription([string]$subscriptionId) {
+    [int]AddServersInSubscription([string]$subscriptionId, [string]$logicalServerName) {
         # In order to list the resource groups for a sub, we need to select the subscription first
         [int]$count = 0;
         $resourceGroups = Get-AzResourceGroup;
         $resourceGroups | ForEach-Object {
             $resourceGroupName = $_.ResourceGroupName;
             Log "Adding resources for resource group $resourceGroupName in subscription $subscriptionId.";
-            $count += $this.AddServers($subscriptionId, $resourceGroupName);
+            $count += $this.AddServers($subscriptionId, $resourceGroupName, $logicalServerName);
         }
         return $count;
     }
@@ -488,13 +491,14 @@ class BulkFailover{
         
         # Get the default subscription and add the resource groups for it
         if ([String]::IsNullOrEmpty($resourceGroupName)) {
-            $count = $this.AddServersInSubscription($subscriptionId);
+            $count = $this.AddServersInSubscription($subscriptionId, $logicalServerName);
         } else {
-            $count = $this.AddServers($subscriptionId, $resourceGroupName);
+            $count = $this.AddServers($subscriptionId, $resourceGroupName, $logicalServerName);
         }
         
-        Log "Found $count servers in subscription $subscriptionId.";
-
+        Log "Found $count total servers in subscription $subscriptionId";
+        $this.servers | ft
+        
         # add the resources for all the servers and log the start of the failover process and the time
         $count = $this.AddResources();
         Log "Starting bulk failover of a total of $($this.resources.Count) resources in $($this.servers.Count) servers.";
@@ -534,12 +538,16 @@ try
     Set-StrictMode -Version Latest
     $VerbosePreference = "Continue"
     Log "Starting UpgradeMeNow script. Authenticating....."
-    $AzureContext = (Connect-AzAccount -Identity).context
 
+    $subscriptionId = $SubscriptionId
     if ([String]::IsNullOrEmpty($SubscriptionId)) {
+        $AzureContext = (Connect-AzAccount -Identity).context
         $subscriptionId = $AzureContext.Subscription
+        Write-Output "Using context subscription $subscriptionId"
     } else {
         $subscriptionId = $SubscriptionId
+        $AzureContext = (Connect-AzAccount -Identity -Subscription $subscriptionId).context
+        Write-Output "Using explicit subscription $subscriptionId"
     }
 
     # set and store context, subscriptionId and the resource group name
