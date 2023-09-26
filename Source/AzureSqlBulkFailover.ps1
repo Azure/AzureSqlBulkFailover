@@ -537,7 +537,7 @@ try
     # Set the strict variable declarations and verbose logging preference to continue so we can see the output
     Set-StrictMode -Version Latest
     $VerbosePreference = "Continue"
-    Log "Starting UpgradeMeNow script. Authenticating....."
+    Log "Starting UpgradeMeNow script for sub '$($SubscriptionId)', resource group '$($ResourceGroupName)', server '$($LogicalServerName)'. Authenticating....."
 
     if ([String]::IsNullOrEmpty($SubscriptionId)) {
         $AzureContext = (Connect-AzAccount -Identity).context
