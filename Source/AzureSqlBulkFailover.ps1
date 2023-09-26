@@ -539,15 +539,14 @@ try
     $VerbosePreference = "Continue"
     Log "Starting UpgradeMeNow script. Authenticating....."
 
-    $subscriptionId = $SubscriptionId
     if ([String]::IsNullOrEmpty($SubscriptionId)) {
         $AzureContext = (Connect-AzAccount -Identity).context
         $subscriptionId = $AzureContext.Subscription
         Write-Output "Using context subscription $subscriptionId"
     } else {
+        Write-Output "Using explicit subscription $subscriptionId"
         $subscriptionId = $SubscriptionId
         $AzureContext = (Connect-AzAccount -Identity -Subscription $subscriptionId).context
-        Write-Output "Using explicit subscription $subscriptionId"
     }
 
     # set and store context, subscriptionId and the resource group name
