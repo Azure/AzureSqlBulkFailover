@@ -1,4 +1,3 @@
-# Written by: Eduardo Rojas (eduardoro@microsoft.com) - With the help of GitHub CoPilot :)
 # Last Updated: 2023-08-03
 # Purpose: This script is used to failover all databases and elastic pools in a subscription to a secondary, already upgraded replica
 # Usage: This script is intended to be run as an Azure Automation Runbook or locally.
@@ -8,19 +7,15 @@
 #Read input parameters subscriptionId and ResourceGroup
 param(
     [Parameter(Mandatory=$false)]
-    [PSCustomObject]$ScriptProperties,
-    [Parameter(Mandatory=$false)]
     [string]$SubscriptionId,
     [Parameter(Mandatory=$false)]
-    [string]$LogicalServerName,
+    [string]$ResourceGroupName,
     [Parameter(Mandatory=$false)]
-    [string]$ResourceGroupName
+    [string]$LogicalServerName
 )
 
 # Base URI for ARM API calls, used to parse out the FailoverStatus path for the failover request
 $global:ARMBaseUri = "https://management.azure.com";
-$global:MaxAttempts = 5;
-$global:RetryThrottleDelay = 5; # minutes
 $global:SleepTime = 15; # seconds
 $global:RecentFailoverTime = 20; # The time in minutes to check for a completed or in progress failover when the failover request is throttled
 $global:OutputMessages = @()
@@ -29,7 +24,6 @@ $global:OutputMessages = @()
 # enum containing resource object FailoverStatus values
 enum FailoverStatus {
     Pending
-    WaitingToRetry
     InProgress
     Succeeded
     Skipped
@@ -86,7 +80,7 @@ class DatabaseResource {
     [int]$Attempts # Used to store the number of times we have tried to failover the resource
     [string]$Name # Name of the resource
     [string]$ResourceId # The id (path) of the resource
-    [bool]$ShouldFailover # Used to store if the resource will upgrade when failver is invoked (if this is false, resource will be skipped)
+    [bool]$ShouldFailover # Used to store if the resource will upgrade when failover is invoked (if this is false, resource will be skipped)
     [bool]$RecentFailoverChecked # Used to store if the resource has been checked for a recent failover
 
     # Constructor takes a Server object, and a resource object (database or elastic pool) as returned from the API call methods 
@@ -224,13 +218,7 @@ class DatabaseResource {
                 # if their was no error but the failover has not yest completed then do nothing
                 $requestContent = $response.Content | ConvertFrom-Json;
                 if ($requestContent.Status -eq "Failed") {
-                    # check if we were Throttled or if there was another errror
-                    If ($requestContent.Error.Code -eq "DatabaseFailoverThrottled"){
-                        Log "$($this.ResourceId) => Throttle: $($requestContent.error.message) while trying to failover. Will retry in $global:RetryThrottleDelay minutes.";
-                        $this.NextAttempt = (Get-Date).AddMinutes($global:RetryThrottleDelay);
-                        $this.FailoverStatus = [FailoverStatus]::WaitingToRetry;
-                        $this.Message = $requestContent.error.message;
-                    }elseif($requestContent.Error.Code -eq "DatabaseNotInStateToFailover"){
+                    if($requestContent.Error.Code -eq "DatabaseNotInStateToFailover"){
                         Log "$($this.ResourceId) => Is serverless and offline so doesnt need failover.";
                         $this.FailoverStatus = [FailoverStatus]::Skipped;
                         $this.Message = $requestContent.error.message;
@@ -239,13 +227,6 @@ class DatabaseResource {
                         Log "$($this.ResourceId) => Error: $($requestContent.error.message) while trying to failover. Will not retry.";
                         $this.FailoverStatus = [FailoverStatus]::Failed;
                         $this.Message = $requestContent.error.message;
-                    }
-                    # Check if we have moved into the WaitingToRetry state, if so, 
-                    # get the last completed or inprogress failover attemps.
-                    # If the last one was completed, then log that we dont need to failover this one and move it to the succeeded state.
-                    # If the last one was inprogress, then log that we need to monitor this one and move it to the inprogress state and set the appropriate FailoverStatusPath.
-                    if (($this.FailoverStatus -eq ([FailoverStatus]::WaitingToRetry)) -and ($this.RecentFailoverChecked -eq $false)){
-                        $this.CheckForRecentFailover();
                     }
                 }
                 elseif ($requestContent.Status -eq "Succeeded") {
@@ -446,22 +427,11 @@ class BulkFailover{
         return $count;
     }
 
-    # Fail over all the resources in the resources list that are Pending or WaitingToRetry and ready for retry
+    # Fail over all the resources in the resources list that are Pending
     [void]Failover() {
         $this.resources | ForEach-Object {
             if ($_.FailoverStatus -eq ([FailoverStatus]::Pending)) {
                 $_.Failover();
-            }elseif ($_.FailoverStatus -eq ([FailoverStatus]::WaitingToRetry)) {
-                # check if enough time has gone by, if so, failover if the number of Attempts is less than the max
-                # if the number of Attempts has reached the max, then set the FailoverStatus to failed
-                if ((Get-Date) -ge $_.NextAttempt) {
-                    if ($_.Attempts -lt $global:MaxAttempts) {
-                        $_.Failover();
-                    }else{
-                        Log "$($_.ResourceId) Max failover attempts reached. Failed to failover. $($_.Message)"
-                        $_.FailoverStatus = [FailoverStatus]::Failed;
-                    }
-                }
             }
         }
     }
@@ -490,8 +460,6 @@ class BulkFailover{
 
     # Main body that does the bulk failover
     [void]Run($subscriptionId, $resourceGroupName, $logicalServerName){
-        Write-Output "BulkFailover.Run() 2"
-        Log "BulkFailover.Run() 2"
         $start = Get-Date;
         Log "BulkFailover.Run($subscriptionId, $resourceGroupName, $logicalServerName)"
         
@@ -503,7 +471,7 @@ class BulkFailover{
         }
         
         Log "Found $count total servers in subscription $subscriptionId";
-        $this.servers | ft
+        $this.servers | Format-Table
         
         # add the resources for all the servers and log the start of the failover process and the time
         $count = $this.AddResources();
@@ -511,13 +479,19 @@ class BulkFailover{
 
         # loop until all resources are failed or succeeded
         do {
-            # failover Pending or WaitingToRetry, wait for the sleep time and update FailoverStatus
-            $toFailoverCount = ($this.resources.CountInStatus([FailoverStatus]::Pending))+($this.resources.CountInStatus([FailoverStatus]::WaitingToRetry))
-            Log "$toFailoverCount resources to be failed over...."
-            $this.Failover();
+            # failover Pending, wait for the sleep time and update FailoverStatus
+            $toFailoverCount = ($this.resources.CountInStatus([FailoverStatus]::Pending))
+            if ($toFailoverCount -gt 0)
+            {
+                Log "$toFailoverCount resources to be failed over...."
+                $this.Failover();
+            }
             $inProgressCount = ($this.resources.CountInStatus([FailoverStatus]::InProgress))
-            Log "$inProgressCount resources in progress.... "
-            Start-Sleep -Seconds $global:SleepTime;
+            if ($inProgressCount -gt 0)
+            {
+                Log "$inProgressCount resources in progress.... "
+                Start-Sleep -Seconds $global:SleepTime;
+            }
             $this.UpdateFailoverStatus();
         }while ($this.resources.HasPending());
     
@@ -545,6 +519,7 @@ try
     $VerbosePreference = "Continue"
     Log "Starting AzureSqlBulkFailover.ps1: sub '$($SubscriptionId)', resource group '$($ResourceGroupName)', server '$($LogicalServerName)'. Authenticating....."
 
+    # Get the default or parameter defined subscription
     if ([String]::IsNullOrEmpty($SubscriptionId)) {
         $AzureContext = (Connect-AzAccount -Identity).context
         $subscriptionId = $AzureContext.Subscription
@@ -562,7 +537,7 @@ try
     Log "Creating BulkFailover"
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
     Log "Initiating bulk failover for subscription: $subscriptionId"
-    $bulkFailover.Run($subscriptionId, $ResourceGroupName, $LogicalServerName);
+    $bulkFailover.Run($SubscriptionId, $ResourceGroupName, $LogicalServerName);
     Log "Failover process complete."
 }
 catch {
