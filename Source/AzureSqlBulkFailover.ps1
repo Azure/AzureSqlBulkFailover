@@ -2,7 +2,7 @@
 # Purpose: This script is used to failover all databases and elastic pools in a subscription to a secondary, already upgraded replica
 # Usage: This script is intended to be run as an Azure Automation Runbook or locally.
 # Notes: This script is intended to be used to facilitate CMW customers to upgrade their databases on demand when upgrades are ready (one touch 
-# Warning: This will failover ALL resources that the caller has access to in all subscriptions in the tenant.
+# Warning: This will failover ALL resources that the caller has access to in all subscriptions in the tenant, filtering by SubscriptionId, ResourceGroupName and LogicalServerName.
 # Copyright 2023 Microsoft Corporation. All rights reserved. MIT License
 #Read input parameters subscriptionId and ResourceGroup
 param(
@@ -17,7 +17,6 @@ param(
 # Base URI for ARM API calls, used to parse out the FailoverStatus path for the failover request
 $global:ARMBaseUri = "https://management.azure.com";
 $global:SleepTime = 15; # seconds
-$global:RecentFailoverTime = 20; # The time in minutes to check for a completed or in progress failover when the failover request is throttled
 $global:OutputMessages = @()
 
 #region Enumerations, globals and helper functions
@@ -76,12 +75,9 @@ class DatabaseResource {
     [FailoverStatus]$FailoverStatus # Used to store the FailoverStatus of the resource
     [string]$FailoverStatusPath # Used to store the API path to get the FailoverStatus of the resource
     [string]$Message # Used to store the last message for an API call to the resource FailoverStatus or failover
-    [datetime]$NextAttempt # Used to store the next time to attempt to get the FailoverStatus of the resource
-    [int]$Attempts # Used to store the number of times we have tried to failover the resource
     [string]$Name # Name of the resource
     [string]$ResourceId # The id (path) of the resource
     [bool]$ShouldFailover # Used to store if the resource will upgrade when failover is invoked (if this is false, resource will be skipped)
-    [bool]$RecentFailoverChecked # Used to store if the resource has been checked for a recent failover
 
     # Constructor takes a Server object, and a resource object (database or elastic pool) as returned from the API call methods 
     # and creates a resource object with the required properties to facilitate processing and querying of state
@@ -90,12 +86,9 @@ class DatabaseResource {
         $this.FailoverStatus = [FailoverStatus]::Pending;
         $this.FailoverStatusPath = "";
         $this.Message = "";
-        $this.NextAttempt = Get-Date;
-        $this.Attempts = 0;
         $this.Name = $this.GetName($resource); 
         $this.ResourceId = $this.GetResourceId($resource);
         $this.ShouldFailover = $this.GetIsFailoverUpgrade($resource);
-        $this.RecentFailoverChecked = $false;
     }
 
     # return the URL to failover the resource (without the ARM base)
@@ -155,38 +148,12 @@ class DatabaseResource {
         return ($this.FailoverStatus -eq ([FailoverStatus]::Succeeded)) -or ($this.FailoverStatus -eq ([FailoverStatus]::Failed)) -or ($this.FailoverStatus -eq ([FailoverStatus]::Skipped));
     }
 
-    # Checks if the resource was recently failed over and sets the status to Skipped if it was
-    [void]CheckForRecentFailover(){
-        # create the filter and url to get the activity log for the resource
-        $now = (Get-Date).ToUniversalTime()
-        $startTime = $now.AddMinutes(-$global:RecentFailoverTime).ToString("yyyy-MM-ddTHH:mm:ssZ");
-        $endTime = $now.ToString("yyyy-MM-ddTHH:mm:ssZ");
-        $filter = "eventTimestamp ge '$startTime' and eventTimestamp le '$endTime' and eventChannels eq 'Admin, Operation' and resourceGroupName eq '$($this.ResourceGroupName())' and resourceId eq '$($this.ResourceId)' and levels eq 'Critical,Error,Warning,Informational'"
-        $url = "/subscriptions/$($this.SubscriptionId())/providers/microsoft.insights/eventtypes/management/values?api-version=2017-03-01-preview&`$filter=$filter"
-
-        # Get the activity log for the resource
-        $response = Invoke-AzRestMethod -Method GET -Path $url;
-        $requestContent = $response.Content | ConvertFrom-Json;
-
-        # Check if the response contains any activity log entries for recent failovers and set status to skipped if successful
-        $this.RecentFailoverChecked = $true;        
-        $failoverEntries = $requestContent.value | Where-Object {
-            (($_.authorization.action -eq "Microsoft.Sql/servers/databases/failover/action") -or
-            ($_.authorization.action -eq "Microsoft.Sql/servers/elasticpools/failover/action")) -and
-            ($_.status.value -eq "Succeeded")
-        }
-        if (($null -ne $failoverEntries) -and ($failoverEntries.Count -gt 0)) {
-            $this.FailoverStatus = [FailoverStatus]::Succeeded;
-        }
-    }
-
     # Fails over the resource, updating the required request information and FailoverStatus in it
     [void]Failover()
     {
         #only failover resources that should be failed over, set the FailoverStatus of the rest to skipped
         if ($this.ShouldFailover) {
             $response = Invoke-AzRestMethod -Method POST -Path $this.FailoverUri();
-            $this.Attempts++;
             if (($response.StatusCode -eq 202) -or ($response.StatusCode -eq 200)) {# check if the failover request was accepted or completed Succeededfully
                 # get the header that gives us the URL to query the FailoverStatus of the request and remove the ARM prefix, add it to the resource as the FailoverStatus path
                 # get the AsynOperationHeader value from the response and parse out the path to the FailoverStatus of the request
@@ -194,7 +161,7 @@ class DatabaseResource {
                 $this.Message = "";
                 $CheckStatusPath = $response.Headers | Where-Object -Property Key -EQ "Azure-AsyncOperation";
                 $this.FailoverStatusPath  = ($CheckStatusPath.value[0]) -replace [regex]::Escape($($global:ARMBaseUri)), "";
-                Log "$($this.ResourceId). Failover attempt $($this.Attempts), monitoring....";
+                Log "$($this.ResourceId). Monitoring failover status....";
             } else {# If we got another kind of response, we failed to failover the resource
                 $this.FailoverStatus = [FailoverStatus]::Failed;
                 $this.Message = $response.Content;
