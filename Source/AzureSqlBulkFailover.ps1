@@ -7,6 +7,8 @@
 #Read input parameters subscriptionId and ResourceGroup
 param(
     [Parameter(Mandatory=$false)]
+    [string]$ScriptProperties,
+    [Parameter(Mandatory=$false)]
     [string]$SubscriptionId,
     [Parameter(Mandatory=$false)]
     [string]$ResourceGroupName,
@@ -22,11 +24,11 @@ $global:OutputMessages = @()
 #region Enumerations, globals and helper functions
 # enum containing resource object FailoverStatus values
 enum FailoverStatus {
-    Pending
-    InProgress
-    Succeeded
-    Skipped
-    Failed
+    Pending # The resource is pending to be failedover.
+    InProgress # The failover process is in progress.
+    Succeeded # The failover process succeeded.
+    Skipped # The failover process was skipped (the database did not need to be failed over or was not eligible).
+    Failed # The failover process failed.
 }
 
 # helper function to log messages to the console including the date, name of the calling class and method

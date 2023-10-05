@@ -8,13 +8,14 @@ This script is intended to be run as an Azure Automation Runbook or locally.
 
 ## Parameters
 
+- `ScriptProperties`: The PSObject representing the JSON manifest properties for the script. This will include the script file name and whatever aditional properties are in the JSON script manifest. Optional.
 - `SubscriptionId`: The ID of the subscription to failover. Optional.
 - `ResourceGroupName`: The name of the resource group to failover. Optional.
 - `LogicalServerName`: The name of the logical server to failover. Optional.
 
 ## Notes
 
-- This script will failover ALL resources that the caller has access to in all subscriptions in the tenant, filtering by SubscriptionId, ResourceGroupName and LogicalServerName.
+- This script will failover ALL resources that runbook or person executing the script has access to in all subscriptions in the tenant, filtering by SubscriptionId, ResourceGroupName and LogicalServerName.
 - The base URI for ARM API calls is `https://management.azure.com`.
 - The script will wait for 15 seconds on each itteration before checking failover status.
 
@@ -188,4 +189,4 @@ This class represents a bulk failover operation for a list of databases and elas
 - `AddResources()`: Adds all resources in all servers in the `Servers` list to the `Resources` list. Returns the number of resources added.
 - `Failover()`: Initiates the failover operation for all `Pending` resources in the `Resources` list.
 - `UpdateFailoverStatus()`: Updates the failover status for all resources in the `Resources` list that are in progress.
-- `Run([string]$subscriptionId, [string]$resourceGroupName, [string]$logicalServerName)`: Runs the failover operation for all the resources matching the subscriptionId, ResourceGroupName and logicalServerName.
+- `Run([string]$subscriptionId, [string]$resourceGroupName, [string]$logicalServerName)`: Runs the failover operation for all the resources matching the subscriptionId, ResourceGroupName and logicalServerName. The failover is executed on the resources that match all the conditions specified. i.e. If the logicalServerName is not specified, all servers in the resource group will be failed over. If the resourceGroup is not specified then all servers in all resource groups will be failed over. If the server name is specified but doesnt exist on the specified respurce group and subscription, then nothing will be failed over.

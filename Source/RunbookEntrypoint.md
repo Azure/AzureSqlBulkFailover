@@ -25,7 +25,7 @@ The script performs the following steps:
 1. Downloads a manifest file (`RunbookEntrypointManifest.json`) from a remote location.
 2. Parses the manifest file to get a list of files to download and execute.
 3. Downloads each file to a local directory.
-4. Executes each file in turn, passing in the required parameters (SubscriptionId, ResourceGroupName and ServerName).
+4. Executes each file in turn, passing in the required parameters (ScriptProperties, SubscriptionId, ResourceGroupName and ServerName).
 
 ## Functions
 
@@ -51,7 +51,7 @@ The script uses the following variables:
 
 ## Loop
 
-The script uses a `foreach` loop to iterate over the `$scriptsToExecute` array and execute each script in turn. For each script, the loop outputs a message indicating which script is being executed, and then uses the call operator (`&`) to invoke the script. The script is invoked with several named parameters (`-SubscriptionId`, `-ResourceGroupName`, `-ServerName`) that are passed to the script as arguments.
+The script uses a `foreach` loop to iterate over the `$scriptsToExecute` array and execute each script in turn. For each script, the loop outputs a message indicating which script is being executed, and then uses the call operator (`&`) to invoke the script. The script is invoked with several named parameters (`ScriptProperties`,`SubscriptionId`, `ResourceGroupName`, `ServerName`) that are passed to the script as arguments.
 
 ## Notes
 
