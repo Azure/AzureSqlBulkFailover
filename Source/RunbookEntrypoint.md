@@ -1,5 +1,3 @@
-GitHub Copilot: Sure, here's an example of an MD document for the `RunbookEntrypoint.ps1` script:
-
 # RunbookEntrypoint.ps1
 
 This PowerShell script is designed to download and execute a series of scripts from a remote location, passing in the required parameters for each script.

@@ -17,7 +17,7 @@ This script is intended to be run as an Azure Automation Runbook or locally.
 
 - This script will failover ALL resources that runbook or person executing the script has access to in all subscriptions in the tenant, filtering by SubscriptionId, ResourceGroupName and LogicalServerName.
 - The base URI for ARM API calls is `https://management.azure.com`.
-- The script will wait for 15 seconds on each itteration before checking failover status.
+- The script will wait for 15 seconds on each iteration before checking failover status.
 
 ## Enumerations, globals and helper functions
 
