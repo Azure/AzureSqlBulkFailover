@@ -332,12 +332,12 @@ class ResourceList : System.Collections.Generic.List[object]{
 # Class that represents a list of servers and associates helper methods
 class ServerList : System.Collections.Generic.List[object]{
     # Helper to get the url (path) to get the list of servers from the subscription and resource group
-    [string]ServerListUrl([string]$subscriptionId, [string]$resourceGroupName) {
+    static [string]ServerListUrl([string]$subscriptionId, [string]$resourceGroupName) {
         return "/subscriptions/$subscriptionId/resourcegroups/$resourceGroupName/providers/Microsoft.Sql/servers?api-version=2021-02-01-preview";
     }
 
     # Adds the list of servers in a subscriptions resource group to this list. If no logical server name is provided, all logical servers 
-    # are enumerated. If $logicalServerName is provided, the method serves to discover the logical server's resource group. 
+    # are enumerated. If $logicalServerName is provided, the method just adds that server to the list. 
     [int]AddServers([string]$subscriptionId, [string]$resourceGroupName, [string]$logicalServerName) {
         $url = $this.ServerListUrl($subscriptionId,$resourceGroupName)
         $response = Invoke-AzRestMethod -Method GET -Path $url;
