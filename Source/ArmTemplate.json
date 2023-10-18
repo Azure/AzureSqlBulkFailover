@@ -77,19 +77,23 @@
       "type": "Microsoft.Automation/automationAccounts",
       "apiVersion": "2022-08-08",
       "location": "[resourceGroup().location]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
       "dependsOn": [
         "[resourceId('Microsoft.Resources/deploymentScripts', 'deleteAzureSqlBulkFailoverRunbook')]"
       ],
       "tags": {},
       "properties": {
           "comment": "Resource defined structure",
+          "disableLocalAuth": false,
           "sku": {
-          "name": "Basic"
-        },
+            "name": "Basic"
+          },
           "encryption": {
-          "keySource": "Microsoft.Automation",
-          "identity": {}
-        }
+            "keySource": "Microsoft.Automation",
+            "identity": {}
+          }
       },
       "resources": [
 
@@ -100,9 +104,9 @@
           "name": "AzureSqlBulkFailover/AzureSqlBulkFailoverRunbook",
           "location": "[resourceGroup().location]",
           "dependsOn": [
-            "AzureSqlBulkFailover",
+            "[resourceId('Microsoft.Resources/deploymentScripts', 'deleteAzureSqlBulkFailoverRunbook')]",
             "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]",
-            "[resourceId('Microsoft.Resources/deploymentScripts', 'deleteAzureSqlBulkFailoverRunbook')]"
+            "AzureSqlBulkFailover"
           ],
           "properties": {
             "description": "Triggers failover for all databases and pools in a server",
@@ -118,5 +122,6 @@
       ]
     }
     ],
+    
 "outputs": {}
 }
