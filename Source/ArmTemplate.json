@@ -10,7 +10,7 @@
 
   "variables": {
     // A unique name for the bootstrap script role assignment
-    "bootstrapRoleAssignmentId": "[guid(concat(resourceGroup().id, 'contributor'))]",
+    "bootstrapRoleAssignmentId": "[guid(concat(resourceGroup().id, 'contributor'))]"
   },
   
   "resources": [
