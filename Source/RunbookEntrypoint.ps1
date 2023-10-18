@@ -66,7 +66,7 @@ function Get-AllFiles ([string]$remoteRootUri, [string]$localRootPath, [ref]$all
   }
 }
 
-$remoteRootUri = 'https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/main'
+$remoteRootUri = 'https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/dev/microman69/bootstrap_permissions'
 $localRootPath = [System.IO.Path]::Combine($env:TEMP, "AzureSqlBulkFailover_$([System.Guid]::NewGuid())")
 New-Item -Path $localRootPath -ItemType "directory" | Out-Null
 
