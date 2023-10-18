@@ -1,6 +1,6 @@
 {
-  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
-  "contentVersion": "1.0",
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
   "parameters": {
     "utcValue": {
       "type": "string",
@@ -11,8 +11,6 @@
   "variables": {
     // A unique name for the bootstrap script role assignment
     "bootstrapRoleAssignmentId": "[guid(concat(resourceGroup().id, 'contributor'))]",
-    // The ID of the well-known Contributor role
-    "contributorRoleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]"
   },
   
   "resources": [
@@ -77,42 +75,1233 @@
     {
       "name": "AzureSqlBulkFailover",
       "type": "Microsoft.Automation/automationAccounts",
-      "apiVersion": "2015-10-31",
+      "apiVersion": "2022-08-08",
       "location": "[resourceGroup().location]",
       "dependsOn": [
         "[resourceId('Microsoft.Resources/deploymentScripts', 'deleteAzureSqlBulkFailoverRunbook')]"
       ],
       "tags": {},
       "properties": {
-        "comment": "Resource defined structure",
-        "sku": {
-          "name": "Free"
+          "comment": "Resource defined structure",
+          "sku": {
+          "name": "Basic"
+        },
+          "encryption": {
+          "keySource": "Microsoft.Automation",
+          "identity": {}
         }
       },
       "resources": [
 
         // An operator executes (or schedules) AzureSqlBulkFailoverRunbook to trigger failover for many databases. 
         {
-          "type": "runbooks",
-          "apiVersion": "2020-01-13-preview",
-          "name": "AzureSqlBulkFailoverRunbook",
+          "type": "Microsoft.Automation/automationAccounts/runbooks",
+          "apiVersion": "2022-08-08",
+          "name": "AzureSqlBulkFailover/AzureSqlBulkFailoverRunbook",
           "location": "[resourceGroup().location]",
           "dependsOn": [
-            "AzureSqlBulkFailover", 
+            "AzureSqlBulkFailover",
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]",
             "[resourceId('Microsoft.Resources/deploymentScripts', 'deleteAzureSqlBulkFailoverRunbook')]"
           ],
           "properties": {
+            "description": "Triggers failover for all databases and pools in a server",
             "runbookType": "PowerShell7",
-            "logProgress": "false",
-            "logVerbose": "false",
-            "description": "Triggers failover for many databases",
+            "logProgress": "true",
+            "logVerbose": "true",
+            "logActivityTrace": 0,
             "publishContentLink": {
               "uri": "https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/main/Source/RunbookEntrypoint.ps1"
             }
           }
         }
       ]
+    },
+    
+    {
+        "type": "Microsoft.Automation/automationAccounts/connectionTypes",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Azure",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "isGlobal": true,
+            "fieldDefinitions": {
+                "AutomationCertificateName": {
+                    "isEncrypted": false,
+                    "isOptional": false,
+                    "type": "System.String"
+                },
+                "SubscriptionID": {
+                    "isEncrypted": false,
+                    "isOptional": false,
+                    "type": "System.String"
+                }
+            }
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/connectionTypes",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/AzureClassicCertificate",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "isGlobal": true,
+            "fieldDefinitions": {
+                "SubscriptionName": {
+                    "isEncrypted": false,
+                    "isOptional": false,
+                    "type": "System.String"
+                },
+                "SubscriptionId": {
+                    "isEncrypted": false,
+                    "isOptional": false,
+                    "type": "System.String"
+                },
+                "CertificateAssetName": {
+                    "isEncrypted": false,
+                    "isOptional": false,
+                    "type": "System.String"
+                }
+            }
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/connectionTypes",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/AzureServicePrincipal",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "isGlobal": true,
+            "fieldDefinitions": {
+                "ApplicationId": {
+                    "isEncrypted": false,
+                    "isOptional": false,
+                    "type": "System.String"
+                },
+                "TenantId": {
+                    "isEncrypted": false,
+                    "isOptional": false,
+                    "type": "System.String"
+                },
+                "CertificateThumbprint": {
+                    "isEncrypted": false,
+                    "isOptional": false,
+                    "type": "System.String"
+                },
+                "SubscriptionId": {
+                    "isEncrypted": false,
+                    "isOptional": false,
+                    "type": "System.String"
+                }
+            }
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/AuditPolicyDsc",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Accounts",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Advisor",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Aks",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.AnalysisServices",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.ApiManagement",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.AppConfiguration",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.ApplicationInsights",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Attestation",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Automation",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Batch",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Billing",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Cdn",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.CloudService",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.CognitiveServices",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Compute",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.ContainerInstance",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.ContainerRegistry",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.CosmosDB",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.DataBoxEdge",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Databricks",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.DataFactory",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.DataLakeAnalytics",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.DataLakeStore",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.DataShare",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.DeploymentManager",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.DesktopVirtualization",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.DevTestLabs",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Dns",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.EventGrid",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.EventHub",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.FrontDoor",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Functions",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.HDInsight",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.HealthcareApis",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.IotHub",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.KeyVault",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Kusto",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.LogicApp",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.MachineLearning",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Maintenance",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.ManagedServiceIdentity",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.ManagedServices",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.MarketplaceOrdering",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Media",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Migrate",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Monitor",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.MySql",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Network",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.NotificationHubs",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.OperationalInsights",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.PolicyInsights",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.PostgreSql",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.PowerBIEmbedded",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.PrivateDns",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.RecoveryServices",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.RedisCache",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.RedisEnterpriseCache",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Relay",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.ResourceMover",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Resources",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Security",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.SecurityInsights",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.ServiceBus",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.ServiceFabric",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.SignalR",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Sql",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.SqlVirtualMachine",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.StackHCI",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Storage",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.StorageSync",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.StreamAnalytics",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Support",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Synapse",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.TrafficManager",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Az.Websites",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Azure",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Azure.Storage",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/AzureRM.Automation",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/AzureRM.Compute",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/AzureRM.Profile",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/AzureRM.Resources",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/AzureRM.Sql",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/AzureRM.Storage",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/ComputerManagementDsc",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/GPRegistryPolicyParser",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Microsoft.PowerShell.Core",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Microsoft.PowerShell.Diagnostics",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Microsoft.PowerShell.Management",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Microsoft.PowerShell.Security",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Microsoft.PowerShell.Utility",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Microsoft.WSMan.Management",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/Orchestrator.AssetManagement.Cmdlets",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/PSDscResources",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/SecurityPolicyDsc",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/StateConfigCompositeResources",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/xDSCDomainjoin",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/xPowerShellExecutionPolicy",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/modules",
+        "apiVersion": "2022-08-08",
+        "name": "AzureSqlBulkFailover/xRemoteDesktopAdmin",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
     }
-  ],
-  "outputs": {}
+],
+"outputs": {}
 }

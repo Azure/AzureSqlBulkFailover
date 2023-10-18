@@ -6,14 +6,8 @@
 # Copyright 2023 Microsoft Corporation. All rights reserved. MIT License
 #Read input parameters subscriptionId and ResourceGroup
 param(
-    [Parameter(Mandatory=$false)]
-    [string]$ScriptProperties,
-    [Parameter(Mandatory=$false)]
-    [string]$SubscriptionId,
-    [Parameter(Mandatory=$false)]
-    [string]$ResourceGroupName,
-    [Parameter(Mandatory=$false)]
-    [string]$LogicalServerName
+    [Parameter(Mandatory=$true)]
+    [string]$ScriptProperties
 )
 
 # Base URI for ARM API calls, used to parse out the FailoverStatus path for the failover request
@@ -486,6 +480,11 @@ try
     # Set the strict variable declarations and verbose logging preference to continue so we can see the output
     Set-StrictMode -Version Latest
     $VerbosePreference = "Continue"
+
+    # Get the input parameters    
+    [string]$SubscriptionId = $ScriptProperties.SubscriptionId;
+    [string]$ResourceGroupName = $ScriptProperties.ResourceGroupName;
+    [string]$LogicalServerName = $ScriptProperties.ServerName;
     Log "Starting AzureSqlBulkFailover.ps1: sub '$($SubscriptionId)', resource group '$($ResourceGroupName)', server '$($LogicalServerName)'. Authenticating....."
 
     # Get the default or parameter defined subscription

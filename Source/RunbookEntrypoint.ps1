@@ -24,13 +24,14 @@ param(
     [string]$SubscriptionId,
     [Parameter(Mandatory=$false)]
     [string]$ResourceGroupName,
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory=$true)]
     [string]$LogicalServerName
 )
 
 $scriptStartTime = (Get-Date).ToUniversalTime().ToString("o")
 Write-Output "Executing RunbookEntrypoint.ps1 with PS ver $($PSVersionTable.PSVersion) at $($scriptStartTime) on $($env:COMPUTERNAME) as $($env:USERNAME)"
 
+# Gets all script files from the specified remote URI (github repo) and puts them in the specified local path (runbook path).
 function Get-File ([string]$remoteRootUri, [string]$remoteFile, [string]$localRootPath, [ref]$localFilePath = '') {
   $remoteFileUri = "$($remoteRootUri)/$($remoteFile)"
   $localFileName = [System.IO.Path]::GetFileName($remoteFile)
@@ -49,11 +50,18 @@ function Get-AllFiles ([string]$remoteRootUri, [string]$localRootPath, [ref]$all
   Get-File -remoteRootUri $remoteRootUri -remoteFile 'Source/RunbookEntrypointManifest.json' -localRootPath $localRootPath -localFilePath ([ref]$manifestFilePath)
   $allFiles.Value = (Get-Content $manifestFilePath | ConvertFrom-Json)
 
+  # set the subscriptionID if not set
+  if ([string]::IsNullOrEmpty($SubscriptionId)) {
+    $SubscriptionId = (Get-AzContext).Subscription.Id
+  }
+
+  # create the script objects and set their execution parameters
   foreach ($file in $allFiles.Value) {
     $localFilePath = ''
     Download-File -remoteRootUri $remoteRootUri -remoteFile $file.File -localRootPath $localRootPath -localFilePath ([ref]$localFilePath)
     Add-Member -InputObject $file -NotePropertyName LocalFilePath -NotePropertyValue $localFilePath 
     Add-Member -InputObject $file -NotePropertyName SubscriptionId -NotePropertyValue $SubscriptionId
+    Add-Member -InputObject $file -NotePropertyName ResourceGroupName -NotePropertyValue $ResourceGroupName
     Add-Member -InputObject $file -NotePropertyName ServerName -NotePropertyValue $ServerName
   }
 }
@@ -71,5 +79,5 @@ foreach ($scriptToExecute in $scriptsToExecute) {
   $scriptNum++
   Write-Output "----`r`n---- Executing $($scriptToExecute.File) ($($scriptNum) of $($scriptsToExecute.Length))...`r`n----"
   $scriptToExecute | Format-List -Property *
-  & ($scriptToExecute.LocalFilePath) -ScriptProperties $scriptToExecute -SubscriptionId $SubscriptionId -ResourceGroupName $ResourceGroupName -LogicalServerName $LogicalServerName
+  & ($scriptToExecute.LocalFilePath) -ScriptProperties $scriptToExecute
 }
