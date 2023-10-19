@@ -144,7 +144,7 @@
             "logVerbose": "true",
             "logActivityTrace": 0,
             "publishContentLink": {
-              "uri": "https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/dev/microman69/bootstrap_permissions/Source/RunbookEntrypoint.ps1"
+              "uri": "https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/main/Source/RunbookEntrypoint.ps1"
             }
           }
         }
