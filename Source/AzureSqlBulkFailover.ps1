@@ -7,7 +7,7 @@
 #Read input parameters subscriptionId and ResourceGroup
 param(
     [Parameter(Mandatory=$true)]
-    [string]$ScriptProperties
+    [psobject]$ScriptProperties
 )
 
 # Base URI for ARM API calls, used to parse out the FailoverStatus path for the failover request
@@ -484,7 +484,7 @@ try
     # Get the input parameters    
     [string]$SubscriptionId = $ScriptProperties.SubscriptionId;
     [string]$ResourceGroupName = $ScriptProperties.ResourceGroupName;
-    [string]$LogicalServerName = $ScriptProperties.ServerName;
+    [string]$LogicalServerName = $ScriptProperties.LogicalServerName;
     Log "Starting AzureSqlBulkFailover.ps1: sub '$($SubscriptionId)', resource group '$($ResourceGroupName)', server '$($LogicalServerName)'. Authenticating....."
 
     # Get the default or parameter defined subscription
