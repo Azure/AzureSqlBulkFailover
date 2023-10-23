@@ -58,7 +58,7 @@ function Get-AllFiles ([string]$remoteRootUri, [string]$localRootPath, [ref]$all
   # create the script objects and set their execution parameters
   foreach ($file in $allFiles.Value) {
     $localFilePath = ''
-    Download-File -remoteRootUri $remoteRootUri -remoteFile $file.File -localRootPath $localRootPath -localFilePath ([ref]$localFilePath)
+    Get-File -remoteRootUri $remoteRootUri -remoteFile $file.File -localRootPath $localRootPath -localFilePath ([ref]$localFilePath)
     Add-Member -InputObject $file -NotePropertyName LocalFilePath -NotePropertyValue $localFilePath 
     Add-Member -InputObject $file -NotePropertyName SubscriptionId -NotePropertyValue $SubscriptionId
     Add-Member -InputObject $file -NotePropertyName ResourceGroupName -NotePropertyValue $ResourceGroupName
@@ -71,7 +71,7 @@ $localRootPath = [System.IO.Path]::Combine($env:TEMP, "AzureSqlBulkFailover_$([S
 New-Item -Path $localRootPath -ItemType "directory" | Out-Null
 
 $allFiles = @()
-Download-AllFiles -remoteRootUri $remoteRootUri -localRootPath $localRootPath -allFiles ([ref]$allFiles)
+Get-AllFiles -remoteRootUri $remoteRootUri -localRootPath $localRootPath -allFiles ([ref]$allFiles)
 
 $scriptsToExecute = ($allFiles | Where-Object { $_.Execute -eq $true })
 $scriptNum = 0
