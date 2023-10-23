@@ -62,7 +62,7 @@ function Get-AllFiles ([string]$remoteRootUri, [string]$localRootPath, [ref]$all
     Add-Member -InputObject $file -NotePropertyName LocalFilePath -NotePropertyValue $localFilePath 
     Add-Member -InputObject $file -NotePropertyName SubscriptionId -NotePropertyValue $SubscriptionId
     Add-Member -InputObject $file -NotePropertyName ResourceGroupName -NotePropertyValue $ResourceGroupName
-    Add-Member -InputObject $file -NotePropertyName ServerName -NotePropertyValue $ServerName
+    Add-Member -InputObject $file -NotePropertyName LogicalServerName -NotePropertyValue $LogicalServerName
   }
 }
 
