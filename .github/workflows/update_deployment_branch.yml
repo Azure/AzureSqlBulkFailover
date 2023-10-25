@@ -1,0 +1,27 @@
+name: Update Branch Name in AzureSqlBulkFailoverSetup.md and RunbookEntrypoint.ps1
+
+on:
+  push:
+    branches:
+      - '*'
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set branch name
+        run: echo "CURRENT_BRANCH=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+
+      - name: Update AzureSqlBulkFailoverSetup
+        run: |
+          sed -i "s|{{branch_name}}|${CURRENT_BRANCH}|g" AzureSqlBulkFailoverSetup.md
+        if: success()
+
+      - name: Update RunbookEntrypoint
+        run: |
+          sed -i "s|{{branch_name}}|${CURRENT_BRANCH}|g" Source/RunbookEntrypoint.ps1
+        if: success()
