@@ -20,12 +20,13 @@
         function deployTemplate() {
             const branchName = "main";
             // Get the url from the referrer (the page that called this)
-            const url = document.referrer;
+            const url = Document.referrer;
+            // The referrer will look something like this: "https://github.com/Azure/AzureSqlBulkFailover/blob/main/AzureSqlBulkFailoverSetup.md"
             // check if we can get the branch name from the url
-            if (url.startsWith("https://github.com/") && url.endsWith("/DeployTemplate.html") && url.indexOf("blob/") > 0) {
-                branchName = url.substring(url.indexOf("blob/") + 5, url.indexOf("/DeployTemplate.html"));
+            if (url.startsWith("https://github.com/") && url.endsWith("/AzureSqlBulkFailoverSetup.md") && url.indexOf("blob/") > 0) {
+                branchName = url.substring(url.indexOf("blob/") + 5, url.indexOf("/AzureSqlBulkFailoverSetup.md"));
             }
-            const escapedUrl = "https://portal.azure.com/#blade/Microsoft_Azure_CreateUIDef/CustomDeploymentBlade/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzureSqlBulkFailover%2F" + escape(branchName) + "%2FSource%2FArmTemplate.json?parameters={\"branchName\":{\"value\":\"" + escape(branchName) + "\"}}";
+            const escapedUrl = escape("https://portal.azure.com/#blade/Microsoft_Azure_CreateUIDef/CustomDeploymentBlade/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzureSqlBulkFailover%2F" + branchName + "%2FSource%2FArmTemplate.json?parameters={\"branchName\":{\"value\":\"" + branchName + "\"}}");
             // go to the escapedUrl
             location.assign(escapedUrl);
         }
