@@ -13,16 +13,6 @@ To execute the runbook, see [AzureSqlBulkFailover - Usage](./AzureSqlBulkFailove
 
 <script>
 function deployTemplate() {
-    const branchName = "main";
-    const url = location.href;
-    if (url.startsWith("https://github.com/")) {
-        branchName = url.substring(url.indexOf("blob/") + 5, url.indexOf("/AzureSqlBulkFailoverSetup.md"));
-    }
-    const escapedUrl = "https://portal.azure.com/#blade/Microsoft_Azure_CreateUIDef/CustomDeploymentBlade/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzureSqlBulkFailover%2F" + escape(branchName) + "%2FSource%2FArmTemplate.json";
-    const xhr = new XMLHttpRequest();
-    xhr.open("PUT", escapedUrl, true);
-<script>
-function deployTemplate() {
   const branchName = "main";
   const url = location.href;
   if (url.startsWith("https://github.com/")) {
