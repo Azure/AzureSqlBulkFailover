@@ -18,7 +18,8 @@
     <script>
         function deployTemplate() {
             const branchName = "main";
-            const url = location.href;
+            // Get the url from the referrer (the page that called this)
+            const url = document.referrer;
             if (url.startsWith("https://github.com/")) {
                 branchName = url.substring(url.indexOf("blob/") + 5, url.indexOf("/DeployTemplate.html"));
             }
