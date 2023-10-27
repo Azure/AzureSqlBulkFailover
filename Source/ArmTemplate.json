@@ -5,6 +5,10 @@
     "utcValue": {
       "type": "string",
       "defaultValue": "[utcNow()]"
+    },
+    "source_branch": {
+      "type": "string",
+      "defaultValue": "main"
     }
   },
 
@@ -149,8 +153,21 @@
           }
         }
       ]
+    },
+    {
+      "type": "Microsoft.Automation/automationAccounts/variables",
+      "apiVersion": "2022-08-08",
+      "name": "AzureSqlBulkFailover/branch_name",
+      "dependsOn": [
+          "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+      ],
+      "properties": {
+          "isEncrypted": false,
+          "value": "[parameters('source_branch')]",
+          "description": "The branch where the bulk failover script will be pulled from for execution"
+      }
     }
-    ],
+  ],
     
 "outputs": {}
 }
