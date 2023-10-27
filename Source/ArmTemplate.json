@@ -163,7 +163,7 @@
       ],
       "properties": {
           "isEncrypted": false,
-          "value": "\"main\"",
+          "value": "[parameters('source_branch')]",
           "description": "The branch where the bulk failover script will be pulled from for execution"
       }
     }
