@@ -6,7 +6,7 @@
       "type": "string",
       "defaultValue": "[utcNow()]"
     },
-    "source_branch": {
+    "branchName": {
       "type": "string",
       "defaultValue": "main"
     }
@@ -163,7 +163,7 @@
       ],
       "properties": {
           "isEncrypted": false,
-          "value": "[parameters('source_branch')]",
+          "value": "[parameters('branchName')]",
           "description": "The branch where the bulk failover script will be pulled from for execution"
       }
     }
