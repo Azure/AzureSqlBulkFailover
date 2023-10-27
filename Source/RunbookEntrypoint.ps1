@@ -25,11 +25,13 @@ param(
     [Parameter(Mandatory=$false)]
     [string]$ResourceGroupName,
     [Parameter(Mandatory=$true)]
-    [string]$LogicalServerName
+    [string]$LogicalServerName,
+    [Parameter(Mandatory=$true)]
+    [string]$branch_name=$using:branch_name
 )
 
 $scriptStartTime = (Get-Date).ToUniversalTime().ToString("o")
-Write-Output "Executing RunbookEntrypoint.ps1 with PS ver $($PSVersionTable.PSVersion) at $($scriptStartTime) on $($env:COMPUTERNAME) as $($env:USERNAME)"
+Write-Output "Executing RunbookEntrypoint.ps1 with PS ver $($PSVersionTable.PSVersion) at $($scriptStartTime) on $($env:COMPUTERNAME) as $($env:USERNAME) from branch_name: $branch_name"
 
 # Gets all script files from the specified remote URI (github repo) and puts them in the specified local path (runbook path).
 function Get-File ([string]$remoteRootUri, [string]$remoteFile, [string]$localRootPath, [ref]$localFilePath = '') {
@@ -66,7 +68,7 @@ function Get-AllFiles ([string]$remoteRootUri, [string]$localRootPath, [ref]$all
   }
 }
 
-$remoteRootUri = 'https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/{{branch_name}}'
+$remoteRootUri = "https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/$branch_name"
 $localRootPath = [System.IO.Path]::Combine($env:TEMP, "AzureSqlBulkFailover_$([System.Guid]::NewGuid())")
 New-Item -Path $localRootPath -ItemType "directory" | Out-Null
 
