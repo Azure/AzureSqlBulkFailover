@@ -2,25 +2,36 @@
 <html>
 <head>
     <title>Deploy AzureSqlBulkFailover runbook to your Azure Subscription</title>
+    <style>
+        .deploy-button {
+            background: url(https://aka.ms/deploytoazurebutton);
+            background-repeat: no-repeat;
+            background-position: center;
+            background-color: transparent;
+            background-size: contain;
+            width: 200px;
+            height: 41px;
+            border: none;
+            cursor: pointer;
+            position: relative;
+        }
+        .deploy-button:hover {
+            transition-duration: 0.4s;
+            background-color: #0078d4;
+            width: 210px;
+            height: 45px;
+        }
+    </style>
 </head>
 <body>
     <h1>Deploy AzureSqlBulkFailover runbook to your Azure Subscription.</h1>
     <p>Use this template to deploy the AzureSqlBulkFailover runbook to your Azure Subscription. Note that if you have already installed it you must manually uninstall it from your subscription before reinstalling.</p>
-    <img src="https://aka.ms/deploytoazurebutton" 
-             style="background-repeat: no-repeat; 
-                            background-position: center; 
-                            background-color: transparent; 
-                            background-size: contain; 
-                            width: 200px; 
-                            height: 41px; 
-                            border: none; 
-                            cursor: hand;"
-            onclick="deployTemplate()">
+    <button  onclick="deployTemplate()" class="deploy-button"></button>
     <script>
         function deployTemplate() {
-            const branchName = "main";
+            var branchName = "main";
             // Get the url from the referrer (the page that called this)
-            const url = document.referrer;
+            const url = "https://github.com/Azure/AzureSqlBulkFailover/blob/test/AzureSqlBulkFailoverSetup.md";//document.referrer;
             alert("referrer: " + url);
             // The referrer will look something like this: "https://github.com/Azure/AzureSqlBulkFailover/blob/main/AzureSqlBulkFailoverSetup.md"
             // check if we can get the branch name from the url
