@@ -27,7 +27,8 @@
             if (url.startsWith("https://github.com/") && url.endsWith("/AzureSqlBulkFailoverSetup.md") && url.indexOf("blob/") > 0) {
                 branchName = url.substring(url.indexOf("blob/") + 5, url.indexOf("/AzureSqlBulkFailoverSetup.md"));
             }
-            const escapedUrl = escape("https://portal.azure.com/#blade/Microsoft_Azure_CreateUIDef/CustomDeploymentBlade/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzureSqlBulkFailover%2F" + branchName + "%2FSource%2FArmTemplate.json?parameters={\"branchName\":{\"value\":\"" + branchName + "\"}}");
+            const escapedUrl = "https://portal.azure.com/#blade/Microsoft_Azure_CreateUIDef/CustomDeploymentBlade/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzureSqlBulkFailover%2F" + escape(branchName) + "%2FSource%2FArmTemplate.json?parameters="+ escape("{\"branchName\":{\"value\":\"" + branchName + "\"}}");
+            alert("escapedUrl: " + escapedUrl);
             // go to the escapedUrl
             location.assign(escapedUrl);
         }
