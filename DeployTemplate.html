@@ -20,8 +20,8 @@
         function deployTemplate() {
             const branchName = "main";
             // Get the url from the referrer (the page that called this)
-            const url = Document.referrer;
-            alert(url);
+            const url = document.referrer;
+            alert("referrer: " + url);
             // The referrer will look something like this: "https://github.com/Azure/AzureSqlBulkFailover/blob/main/AzureSqlBulkFailoverSetup.md"
             // check if we can get the branch name from the url
             if (url.startsWith("https://github.com/") && url.endsWith("/AzureSqlBulkFailoverSetup.md") && url.indexOf("blob/") > 0) {
