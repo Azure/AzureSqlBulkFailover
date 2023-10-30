@@ -491,10 +491,12 @@ try
     # get the resource group that the automation account was created in
     $automationAccount = Get-AzAutomationAccount -Name "AzureSqlBulkFailover";
     $AutomationResourceGroupName = $automationAccount.ResourceGroupName;
+    Log "Automation Account: $($automationAccount.Name) in resource group: $AutomationResourceGroupName)"
 
     # Get the identity using the resourcegroupname and the known name of the identity
     $identity = Get-AzUserAssignedIdentity -ResourceGroupName $AutomationResourceGroupName -Name 'AzureSqlBulkFailoverRunbookIdentity'
-
+    Log "Using identity: $($identity.ClientId)"
+    
     # Get the default or parameter defined subscription
     if ([String]::IsNullOrEmpty($SubscriptionId)) {
         $AzureContext = (Connect-AzAccount -Identity $identity.ClientId).context
