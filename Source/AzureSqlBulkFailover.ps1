@@ -487,18 +487,18 @@ try
     [string]$LogicalServerName = $ScriptProperties.LogicalServerName;
     Log "Starting AzureSqlBulkFailover.ps1: sub '$($SubscriptionId)', resource group '$($ResourceGroupName)', server '$($LogicalServerName)'. Authenticating....."
 
-    # list the identity
-    az resource list --query "[?identity.type=='SystemAssigned'].{Name:name, principalId:identity.principalId}" --output table
+    # Get the identity id
+    [string]$identityId = (az identity show --resource-group Automation --name AzureSqlBulkFailoverRunbookIdentity --query clientId)
 
     # Get the default or parameter defined subscription
     if ([String]::IsNullOrEmpty($SubscriptionId)) {
-        $AzureContext = (Connect-AzAccount -Identity).context
+        $AzureContext = (Connect-AzAccount -Identity $identityId).context
         $subscriptionId = $AzureContext.Subscription
         Log "Using context subscription $subscriptionId"
     } else {
         Log "Using explicit subscription $subscriptionId"
         $subscriptionId = $SubscriptionId
-        $AzureContext = (Connect-AzAccount -Identity -Subscription $subscriptionId).context
+        $AzureContext = (Connect-AzAccount -Identity $identityId -Subscription $subscriptionId).context
     }
 
     # set and store context, subscriptionId and the resource group name
