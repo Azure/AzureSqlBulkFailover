@@ -472,6 +472,7 @@ class BulkFailover{
 #endregion
 
 #region Script Body
+
 # Main method that runs the script to failover all databases and elastic pools in a resource group
 try
 {
@@ -487,18 +488,18 @@ try
     [string]$LogicalServerName = $ScriptProperties.LogicalServerName;
     Log "Starting AzureSqlBulkFailover.ps1: sub '$($SubscriptionId)', resource group '$($ResourceGroupName)', server '$($LogicalServerName)'. Authenticating....."
 
-    # Get the identity id
-    [string]$identityId = (az identity show --resource-group Automation --name AzureSqlBulkFailoverRunbookIdentity --query clientId)
+    # Get the identity using the resourcegroupname and the known name of the identity
+    $identity = Get-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name 'AzureSqlBulkFailoverRunbookIdentity'
 
     # Get the default or parameter defined subscription
     if ([String]::IsNullOrEmpty($SubscriptionId)) {
-        $AzureContext = (Connect-AzAccount -Identity $identityId).context
+        $AzureContext = (Connect-AzAccount -Identity $identity.ClientId).context
         $subscriptionId = $AzureContext.Subscription
         Log "Using context subscription $subscriptionId"
     } else {
         Log "Using explicit subscription $subscriptionId"
         $subscriptionId = $SubscriptionId
-        $AzureContext = (Connect-AzAccount -Identity $identityId -Subscription $subscriptionId).context
+        $AzureContext = (Connect-AzAccount -Identity $identity.ClientId -Subscription $subscriptionId).context
     }
 
     # set and store context, subscriptionId and the resource group name
