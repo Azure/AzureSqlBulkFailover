@@ -488,8 +488,12 @@ try
     [string]$LogicalServerName = $ScriptProperties.LogicalServerName;
     Log "Starting AzureSqlBulkFailover.ps1: sub '$($SubscriptionId)', resource group '$($ResourceGroupName)', server '$($LogicalServerName)'. Authenticating....."
 
+    # get the resource group that the automation account was created in
+    $automationAccount = Get-AzAutomationAccount -Name "AzureSqlBulkFailover";
+    $AutomationResourceGroupName = $automationAccount.ResourceGroupName;
+
     # Get the identity using the resourcegroupname and the known name of the identity
-    $identity = Get-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name 'AzureSqlBulkFailoverRunbookIdentity'
+    $identity = Get-AzUserAssignedIdentity -ResourceGroupName $AutomationResourceGroupName -Name 'AzureSqlBulkFailoverRunbookIdentity'
 
     # Get the default or parameter defined subscription
     if ([String]::IsNullOrEmpty($SubscriptionId)) {
