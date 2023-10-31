@@ -129,7 +129,6 @@
           }
       },
       "resources": [
-
         // An operator executes (or schedules) AzureSqlBulkFailoverRunbook to trigger failover for many databases. 
         {
           "type": "Microsoft.Automation/automationAccounts/runbooks",
@@ -151,21 +150,34 @@
               "uri": "https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/main/Source/RunbookEntrypoint.ps1"
             }
           }
+        },
+        {
+          "type": "Microsoft.Automation/automationAccounts/variables",
+          "apiVersion": "2022-08-08",
+          "name": "AzureSqlBulkFailover/branch_name",
+          "dependsOn": [
+              "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+          ],
+          "properties": {
+              "isEncrypted": false,
+              "value": "[concat('\"', parameters('branchName'),'\"')]",
+              "description": "The branch where the bulk failover script will be pulled from for execution"
+          }
+        },
+        {
+          "type": "Microsoft.Automation/automationAccounts/variables",
+          "apiVersion": "2022-08-08",
+          "name": "AzureSqlBulkFailover/automation_resource_group_name",
+          "dependsOn": [
+              "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
+          ],
+          "properties": {
+              "isEncrypted": false,
+              "value": "[resourceGroup().name]",
+              "description": "The branch where the bulk failover script will be pulled from for execution"
+          }
         }
       ]
-    },
-    {
-      "type": "Microsoft.Automation/automationAccounts/variables",
-      "apiVersion": "2022-08-08",
-      "name": "AzureSqlBulkFailover/branch_name",
-      "dependsOn": [
-          "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
-      ],
-      "properties": {
-          "isEncrypted": false,
-          "value": "[parameters('branchName')]",
-          "description": "The branch where the bulk failover script will be pulled from for execution"
-      }
     }
   ],
     
