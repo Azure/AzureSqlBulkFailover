@@ -472,6 +472,7 @@ class BulkFailover{
 #endregion
 
 #region Script Body
+
 # Main method that runs the script to failover all databases and elastic pools in a resource group
 try
 {
@@ -487,18 +488,23 @@ try
     [string]$LogicalServerName = $ScriptProperties.LogicalServerName;
     Log "Starting AzureSqlBulkFailover.ps1: sub '$($SubscriptionId)', resource group '$($ResourceGroupName)', server '$($LogicalServerName)'. Authenticating....."
 
-    # list the identity
-    az resource list --query "[?identity.type=='SystemAssigned'].{Name:name, principalId:identity.principalId}" --output table
+    # get the resource group that the automation account was created in
+    $AutomationResourceGroupName = $using:automation_resource_group_name
+    Log "Automation resource group: $AutomationResourceGroupName)"
 
+    # Get the identity using the resourcegroupname and the known name of the identity
+    $identity = Get-AzUserAssignedIdentity -ResourceGroupName $AutomationResourceGroupName -Name 'AzureSqlBulkFailoverRunbookIdentity'
+    Log "Using identity: $($identity.ClientId)"
+    
     # Get the default or parameter defined subscription
     if ([String]::IsNullOrEmpty($SubscriptionId)) {
-        $AzureContext = (Connect-AzAccount -Identity).context
+        $AzureContext = (Connect-AzAccount -Identity $identity.ClientId).context
         $subscriptionId = $AzureContext.Subscription
         Log "Using context subscription $subscriptionId"
     } else {
         Log "Using explicit subscription $subscriptionId"
         $subscriptionId = $SubscriptionId
-        $AzureContext = (Connect-AzAccount -Identity -Subscription $subscriptionId).context
+        $AzureContext = (Connect-AzAccount -Identity $identity.ClientId -Subscription $subscriptionId).context
     }
 
     # set and store context, subscriptionId and the resource group name
