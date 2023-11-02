@@ -9,7 +9,9 @@
     "branchName": {
       "type": "string",
       "defaultValue": "main"
-    }
+    },
+    "dummy": {
+      "type": "string"}
   },
 
   "variables": {

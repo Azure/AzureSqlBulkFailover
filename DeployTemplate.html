@@ -53,7 +53,8 @@
                 }
             };
             // https://stackoverflow.com/questions/52438431/arm-template-functions-not-working-with-default-values
-            const escapedUrl = "https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzureSqlBulkFailover%2F" + escape(branchName) + "%2FSource%2FArmTemplate.json?body="+escape(JSON.stringify(body));
+            // body="+escape(JSON.stringify(body)
+            const escapedUrl = "https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzureSqlBulkFailover%2F" + escape(branchName) + "%2FSource%2FArmTemplate.json?dummy=duh";
             // go to the escapedUrl
             location.assign(escapedUrl);
         }
