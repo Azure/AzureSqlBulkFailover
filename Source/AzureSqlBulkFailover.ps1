@@ -493,18 +493,19 @@ try
     Log "Automation resource group: $AutomationResourceGroupName"
 
     # Get the identity using the resourcegroupname and the known name of the identity
-    $identity = Get-AzUserAssignedIdentity -ResourceGroupName $AutomationResourceGroupName -Name 'AzureSqlBulkFailoverIdentity'
-    Log "Using identity: $($identity.ClientId)"
+    $identity = (Get-AzUserAssignedIdentity -ResourceGroupName $AutomationResourceGroupName -Name 'AzureSqlBulkFailoverIdentity').ClientId
+
+    Log "Using identity: $identity"
     
     # Get the default or parameter defined subscription
     if ([String]::IsNullOrEmpty($SubscriptionId)) {
-        $AzureContext = (Connect-AzAccount -Identity $identity.ClientId).context
+        $AzureContext = (Connect-AzAccount -Identity $identity).context
         $subscriptionId = $AzureContext.Subscription
         Log "Using context subscription $subscriptionId"
     } else {
         Log "Using explicit subscription $subscriptionId"
         $subscriptionId = $SubscriptionId
-        $AzureContext = (Connect-AzAccount -Identity $identity.ClientId -Subscription $subscriptionId).context
+        $AzureContext = (Connect-AzAccount -Identity $identity -Subscription $subscriptionId).context
     }
 
     # set and store context, subscriptionId and the resource group name
