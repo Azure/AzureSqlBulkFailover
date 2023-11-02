@@ -481,11 +481,6 @@ try
     # Set the strict variable declarations and verbose logging preference to continue so we can see the output
     Set-StrictMode -Version Latest
     $VerbosePreference = "Continue"
-
-    # set the subscriptionID if not set
-    if ([string]::IsNullOrEmpty($SubscriptionId)) {
-        $SubscriptionId = (Get-AzContext).Subscription.Id
-    }
  
     # Get the input parameters    
     [string]$SubscriptionId = $ScriptProperties.SubscriptionId;

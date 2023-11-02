@@ -20,7 +20,7 @@
 
 #Read input parameters subscriptionId and ResourceGroupName and LogicalServerName
 param(
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory=$true)]
     [string]$SubscriptionId,
     [Parameter(Mandatory=$true)]
     [string]$ResourceGroupName,
@@ -33,15 +33,9 @@ param(
 $scriptStartTime = (Get-Date).ToUniversalTime().ToString("o")
 Write-Output "Executing RunbookEntrypoint.ps1 with PS ver $($PSVersionTable.PSVersion) at $($scriptStartTime) on $($env:COMPUTERNAME) as $($env:USERNAME) from branch_name: $branch_name"
 
-# set the subscriptionID if not set
-if ([string]::IsNullOrEmpty($SubscriptionId)) {
-  $SubscriptionId = (Get-AzContext).Subscription.Id
-  Write-Output "SubscriptionId not specified. Using the subscription that contains this runbook: $($SubscriptionId)"
-}
-
 # Gets all script files from the specified remote URI (github repo) and puts them in the specified local path (runbook path).
 function Get-File ([string]$remoteRootUri, [string]$remoteFile, [string]$localRootPath, [ref]$localFilePath = '') {
-  $remoteFileUri = "$($remoteRootUri)/$($remoteFile)"
+  $remoteFileUri = "$($remoteRootUri)/$dsa($remoteFile)"
   $localFileName = [System.IO.Path]::GetFileName($remoteFile)
   $downloadedFilePath = "$($localRootPath)\$($localFileName)"
   Write-Output "Downloading $($remoteFileUri)..."
