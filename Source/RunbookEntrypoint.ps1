@@ -27,7 +27,7 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$LogicalServerName,
     [Parameter(Mandatory=$true)]
-    [string]$branch_name=$using:branch_name
+    [string]$branch_name=$(Get-AzAutomationVariable -Name 'branch_name').Value
 )
 
 $scriptStartTime = (Get-Date).ToUniversalTime().ToString("o")

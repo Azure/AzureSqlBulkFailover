@@ -489,7 +489,7 @@ try
     Log "Starting AzureSqlBulkFailover.ps1: sub '$($SubscriptionId)', resource group '$($ResourceGroupName)', server '$($LogicalServerName)'. Authenticating....."
 
     # get the resource group that the automation account was created in
-    $AutomationResourceGroupName = $using:automation_resource_group_name
+    $AutomationResourceGroupName = $(Get-AzAutomationVariable -name "automation_resource_group_name")
     Log "Automation resource group: $AutomationResourceGroupName)"
 
     # Get the identity using the resourcegroupname and the known name of the identity
