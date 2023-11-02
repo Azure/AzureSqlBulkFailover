@@ -22,16 +22,22 @@
 param(
     [Parameter(Mandatory=$false)]
     [string]$SubscriptionId,
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory=$true)]
     [string]$ResourceGroupName,
     [Parameter(Mandatory=$true)]
     [string]$LogicalServerName,
     [Parameter(Mandatory=$true)]
-    [string]$branch_name=(Get-AutomationVariable -Name 'branch_name').Value
+    [string]$branch_name="Main"
 )
 
 $scriptStartTime = (Get-Date).ToUniversalTime().ToString("o")
 Write-Output "Executing RunbookEntrypoint.ps1 with PS ver $($PSVersionTable.PSVersion) at $($scriptStartTime) on $($env:COMPUTERNAME) as $($env:USERNAME) from branch_name: $branch_name"
+
+# set the subscriptionID if not set
+if ([string]::IsNullOrEmpty($SubscriptionId)) {
+  $SubscriptionId = (Get-AzContext).Subscription.Id
+  Write-Output "SubscriptionId not specified. Using the subscription that contains this runbook: $($SubscriptionId)"
+}
 
 # Gets all script files from the specified remote URI (github repo) and puts them in the specified local path (runbook path).
 function Get-File ([string]$remoteRootUri, [string]$remoteFile, [string]$localRootPath, [ref]$localFilePath = '') {
@@ -51,11 +57,6 @@ function Get-AllFiles ([string]$remoteRootUri, [string]$localRootPath, [ref]$all
   $manifestFilePath = [string]""
   Get-File -remoteRootUri $remoteRootUri -remoteFile 'Source/RunbookEntrypointManifest.json' -localRootPath $localRootPath -localFilePath ([ref]$manifestFilePath)
   $allFiles.Value = (Get-Content $manifestFilePath | ConvertFrom-Json)
-
-  # set the subscriptionID if not set
-  if ([string]::IsNullOrEmpty($SubscriptionId)) {
-    $SubscriptionId = (Get-AzContext).Subscription.Id
-  }
 
   # create the script objects and set their execution parameters
   foreach ($file in $allFiles.Value) {
