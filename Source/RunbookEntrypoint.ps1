@@ -35,7 +35,7 @@ Write-Output "Executing RunbookEntrypoint.ps1 with PS ver $($PSVersionTable.PSVe
 
 # Gets all script files from the specified remote URI (github repo) and puts them in the specified local path (runbook path).
 function Get-File ([string]$remoteRootUri, [string]$remoteFile, [string]$localRootPath, [ref]$localFilePath = '') {
-  $remoteFileUri = "$($remoteRootUri)/$dsa($remoteFile)"
+  $remoteFileUri = "$($remoteRootUri)/$($remoteFile)"
   $localFileName = [System.IO.Path]::GetFileName($remoteFile)
   $downloadedFilePath = "$($localRootPath)\$($localFileName)"
   Write-Output "Downloading $($remoteFileUri)..."
