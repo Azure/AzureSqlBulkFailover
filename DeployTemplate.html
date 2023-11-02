@@ -39,22 +39,9 @@
             if (url.startsWith("https://github.com/") && url.endsWith("/AzureSqlBulkFailoverSetup.md") && url.indexOf("blob/") > 0) {
                 branchName = url.substring(url.indexOf("blob/") + 5, url.indexOf("/AzureSqlBulkFailoverSetup.md"));
             }
-            const body = {
-                "properties":{
-                    "templateLink": {
-                        "uri": "https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/" + branchName + "/Source/ArmTemplate.json",
-                        "contentVersion": "1.0.0.0"
-                    },
-                    "parameters":{
-                        "branchName": {
-                            "value": branchName
-                        }
-                    }
-                }
-            };
             // https://stackoverflow.com/questions/52438431/arm-template-functions-not-working-with-default-values
-            // body="+escape(JSON.stringify(body)
-            const escapedUrl = "https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzureSqlBulkFailover%2F" + escape(branchName) + "%2FSource%2FArmTemplate.json?dummy=duh";
+            // Cant figure out how to pass the branchName to the template, so we will just allow the default and devs will have to enter the branch to pull the script
+            const escapedUrl = "https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzureSqlBulkFailover%2F" + escape(branchName) + "%2FSource%2FArmTemplate.json";
             // go to the escapedUrl
             location.assign(escapedUrl);
         }
