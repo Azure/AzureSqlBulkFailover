@@ -335,7 +335,7 @@ class ServerList : System.Collections.Generic.List[object]{
     # Adds the list of servers in a subscriptions resource group to this list. If no logical server name is provided, all logical servers 
     # are enumerated. If $logicalServerName is provided, the method just adds that server to the list. 
     [int]AddServers([string]$subscriptionId, [string]$resourceGroupName, [string]$logicalServerName) {
-        $url = $this.ServerListUrl($subscriptionId,$resourceGroupName)
+        $url = [ServerList]::ServerListUrl($subscriptionId,$resourceGroupName)
         $response = Invoke-AzRestMethod -Method GET -Path $url;
         $content = ($response.Content | ConvertFrom-Json).value;
         [int]$count = 0;
