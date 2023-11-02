@@ -482,39 +482,21 @@ try
     Set-StrictMode -Version Latest
     $VerbosePreference = "Continue"
 
+    # set the subscriptionID if not set
+    if ([string]::IsNullOrEmpty($SubscriptionId)) {
+        $SubscriptionId = (Get-AzContext).Subscription.Id
+    }
+ 
     # Get the input parameters    
     [string]$SubscriptionId = $ScriptProperties.SubscriptionId;
     [string]$ResourceGroupName = $ScriptProperties.ResourceGroupName;
     [string]$LogicalServerName = $ScriptProperties.LogicalServerName;
-    Log "Starting AzureSqlBulkFailover.ps1: sub '$($SubscriptionId)', resource group '$($ResourceGroupName)', server '$($LogicalServerName)'. Authenticating....."
-
-    # get the resource group that the automation account was created in
-    $AutomationResourceGroupName = $(Get-AutomationVariable -name "automation_resource_group_name")
-    Log "Automation resource group: $AutomationResourceGroupName"
-
-    # Get the identity using the resourcegroupname and the known name of the identity
-    $identity = (Get-AzUserAssignedIdentity -ResourceGroupName $AutomationResourceGroupName -Name 'AzureSqlBulkFailoverIdentity').ClientId
-
-    Log "Using identity: $identity"
-    
-    # Get the default or parameter defined subscription
-    if ([String]::IsNullOrEmpty($SubscriptionId)) {
-        $AzureContext = (Connect-AzAccount -Identity $identity).context
-        $subscriptionId = $AzureContext.Subscription
-        Log "Using context subscription $subscriptionId"
-    } else {
-        Log "Using explicit subscription $subscriptionId"
-        $subscriptionId = $SubscriptionId
-        $AzureContext = (Connect-AzAccount -Identity $identity -Subscription $subscriptionId).context
-    }
-
-    # set and store context, subscriptionId and the resource group name
-    Set-AzContext -SubscriptionName $subscriptionId -DefaultProfile $AzureContext
+    Log "Starting AzureSqlBulkFailover.ps1 on sub:'$($SubscriptionId)', resource group: '$($ResourceGroupName)', server: '$($LogicalServerName)'..."
 
     # Create the bulk failover object and run the failover process
-    Log "Creating BulkFailover"
+    Log "Creating BulkFailover..."
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
-    Log "Initiating bulk failover for subscription: $subscriptionId"
+    Log "Initiating bulk failover for server: $LogicalServerName..."
     $bulkFailover.Run($SubscriptionId, $ResourceGroupName, $LogicalServerName);
     Log "Failover process complete."
 }

@@ -32,19 +32,6 @@
           "value": "[concat('\"',parameters('branchName'),'\"')]"
       }
     },
-    {
-      "type": "Microsoft.Automation/automationAccounts/variables",
-      "apiVersion": "2022-08-08",
-      "name": "AzureSqlBulkFailover/automation_resource_group_name",
-      "dependsOn": [
-          "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
-      ],
-      "properties": {
-          "description": "The resource group name where the automation account is deployed",
-          "isEncrypted": false,
-          "value": "[concat('\"',resourceGroup().name,'\"')]"
-      }
-    },
     
     // Create an identity to run the setup/bootstrap script. 
     {
