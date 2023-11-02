@@ -489,7 +489,7 @@ try
     Log "Starting AzureSqlBulkFailover.ps1 on sub:'$($SubscriptionId)', resource group: '$($ResourceGroupName)', server: '$($LogicalServerName)'..."
 
     # Get the identity and connect to the subscription
-    $identity = Get-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name 'AzureSqlBulkFailoverIdentity'
+    $identity = Get-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name 'AzureSqlBulkFailoverIdentity' -SubscriptionId $SubscriptionId
     Connect-AzAccount -Identity -AccountId $identity.ClientId
 
     # Create the bulk failover object and run the failover process
