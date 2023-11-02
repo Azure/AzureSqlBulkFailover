@@ -488,6 +488,7 @@ try
     [string]$LogicalServerName = $ScriptProperties.LogicalServerName;
     Log "Starting AzureSqlBulkFailover.ps1 on sub:'$($SubscriptionId)', resource group: '$($ResourceGroupName)', server: '$($LogicalServerName)'..."
 
+    Connect-AzAccount -Identity "a679aea3-e5a8-436b-bc0b-26c053bc2ab0"
     # Create the bulk failover object and run the failover process
     Log "Creating BulkFailover..."
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
