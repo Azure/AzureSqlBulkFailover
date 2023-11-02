@@ -30,8 +30,7 @@
       "properties": {
           "description": "The branch where the bulk failover script will be pulled from for execution",
           "isEncrypted": false,
-          "type": "String",
-          "value": "deploya"
+          "value": "\"deploya\""
       }
     },
     {
@@ -44,8 +43,7 @@
       "properties": {
           "description": "The resource group name where the automation account is deployed",
           "isEncrypted": false,
-          "type": "String",
-          "value": "automaton"
+          "value": "\"automaton\""
       }
     },
     
