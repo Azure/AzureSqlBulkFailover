@@ -2,10 +2,6 @@
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "utcValue": {
-      "type": "string",
-      "defaultValue": "[utcNow()]"
-    },
     "branchName": {
       "type": "string",
       "defaultValue": "main"
@@ -93,7 +89,7 @@
       "kind": "AzurePowerShell",
       "properties": {
         // Run even if the script has not changed. 
-        "forceUpdateTag": "[parameters('utcValue')]",
+        "forceUpdateTag": "[utcNow()]",
         "azPowerShellVersion": "8.3",
         "scriptContent": "[concat('Write-Output ''Deleting AzureSqlBulkFailoverRunbook...''; Remove-AzAutomationRunbook -ResourceGroupName ', resourceGroup().name, ' -AutomationAccountName AzureSqlBulkFailover -Name AzureSqlBulkFailoverRunbook -Force; Write-Output ''Listing runbooks...''; Get-AzAutomationRunbook -ResourceGroupName ', resourceGroup().name, ' -AutomationAccountName AzureSqlBulkFailover | select ResourceGroupName, AutomationAccountName, Name, State | ft; Write-Output ''Done.''; ')]",
         "timeout": "PT10M",
