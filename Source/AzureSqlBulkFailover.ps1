@@ -13,7 +13,6 @@ param(
 # Base URI for ARM API calls, used to parse out the FailoverStatus path for the failover request
 $global:ARMBaseUri = "https://management.azure.com";
 $global:SleepTime = 15; # seconds
-$global:OutputMessages = @()
 
 #region Enumerations, globals and helper functions
 # enum containing resource object FailoverStatus values
@@ -29,7 +28,6 @@ enum FailoverStatus {
 function Log($message) {
     $outputMessage = "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message"
     Write-Verbose $outputMessage
-    $global:OutputMessages += $message
 }
 #endregion
 
@@ -502,12 +500,8 @@ try
 }
 catch {
     # Complete all progress bars and write the error
-    Write-Error -Message $_.Exception
+    Write-Output -Message "Exception: $($_.Exception)"
     throw $_.Exception
-}
-finally {
-  Write-Output "==== Full output:"
-  $global:OutputMessages
 }
 
 #endregion
