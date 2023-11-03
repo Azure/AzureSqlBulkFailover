@@ -2,123 +2,32 @@
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "guid":{
+    "AutomationAccountName":{
       "type": "string",
-      "defaultValue": "[newGuid()]"
+      "defaultValue":"AzureSqlBulkFailover",
+      "metadata": {
+        "description": "The name of the automation account must be unique for the subscription. You must delete the existing account to redeploy with the same name."
+      }
     },
     "branchName": {
       "type": "string",
-      "defaultValue": "main"
+      "defaultValue": "main",
+      "metadata": {
+        "description": "The name of the branch to pull the bulk failover scripts from, for official release leave as main, for debugging changes enter the name of the branch where your modified scripts are located (must be in the same AzureSqlBulkFailover GitHub repository)."
+      }
     }
   },
 
-  "variables": {
-    // A unique name for the bootstrap script and runbook role assignments
-    "bootstrapRoleAssignmentId": "[guid(concat(resourceGroup().id, 'contributor'))]"
-  },
-  
-  "resources": [
-    // declare the automation account variables to store key runbook deployment information
-    {
-      "type": "Microsoft.Automation/automationAccounts/variables",
-      "apiVersion": "2022-08-08",
-      "name": "AzureSqlBulkFailover/branch_name",
-      "dependsOn": [
-          "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
-      ],
-      "properties": {
-          "description": "The branch where the bulk failover script will be pulled from for execution",
-          "isEncrypted": false,
-          "value": "[concat('\"',parameters('branchName'),'\"')]"
-      }
-    },
-    {
-      "type": "Microsoft.Automation/automationAccounts/variables",
-      "apiVersion": "2022-08-08",
-      "name": "AzureSqlBulkFailover/automation_resource_group_name",
-      "dependsOn": [
-          "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]"
-      ],
-      "properties": {
-          "description": "The resource group name where the automation account is deployed",
-          "isEncrypted": false,
-          "value": "[concat('\"',resourceGroup().name,'\"')]"
-      }
-    },
-    
-    // Create an identity to run the setup/bootstrap script. 
-    {
-      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
-      "apiVersion": "2018-11-30",
-      "name": "AzureSqlBulkFailoverBootstrapIdentity",
-      "location": "[resourceGroup().location]"
-    },
-
-    // Grant the bootstrap identity Contributor role in this resource group. 
-    {
-      "type": "Microsoft.Authorization/roleAssignments",
-      "apiVersion": "2020-10-01-preview",
-      "name": "[variables('bootstrapRoleAssignmentId')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'AzureSqlBulkFailoverBootstrapIdentity')]"
-      ],
-      "properties": {
-        // The b24988ac... GUID is the ID of the well-known Contributor role. 
-        "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
-        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'AzureSqlBulkFailoverBootstrapIdentity'), '2018-11-30').principalId]",
-        "scope": "[resourceGroup().id]",
-        "principalType": "ServicePrincipal"
-      }
-    },
-
-    // Azure Automation re-deployment will not update existing runbooks. This bootstrap script runs during ARM template deployment to 
-    // delete AzureSqlBulkFailoverRunbook, if it already exists. This ensures that the updated runbook gets recreated with the latest 
-    // script content. This runs during initial deployment of the ARM template, and on re-deployment. It is not involved in runbook 
-    // execution. 
-    {
-      "type": "Microsoft.Resources/deploymentScripts",
-      "apiVersion": "2020-10-01",
-      "name": "deleteAzureSqlBulkFailoverRunbook",
-      "location": "[resourceGroup().location]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Authorization/roleAssignments', variables('bootstrapRoleAssignmentId'))]"
-      ],
-      "identity": {
-        "type": "UserAssigned",
-        "userAssignedIdentities": {
-          "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'AzureSqlBulkFailoverBootstrapIdentity')]": {
-          }
-        }
-      },
-      "kind": "AzurePowerShell",
-      "properties": {
-        // Run even if the script has not changed. 
-        "forceUpdateTag": "[concat('\"',parameters('guid'),'\"')]",
-        "azPowerShellVersion": "8.3",
-        "scriptContent": "[concat('Write-Output ''Deleting AzureSqlBulkFailoverRunbook...''; Remove-AzAutomationRunbook -ResourceGroupName ', resourceGroup().name, ' -AutomationAccountName AzureSqlBulkFailover -Name AzureSqlBulkFailoverRunbook -Force; Write-Output ''Listing runbooks...''; Get-AzAutomationRunbook -ResourceGroupName ', resourceGroup().name, ' -AutomationAccountName AzureSqlBulkFailover | select ResourceGroupName, AutomationAccountName, Name, State | ft; Write-Output ''Done.''; ')]",
-        "timeout": "PT10M",
-        "cleanupPreference": "OnSuccess",
-        "retentionInterval": "P1D"
-      }
-    },
-
+  "resources": [    
     // An Azure Automation account is a container for runbooks. 
     {
-      "name": "AzureSqlBulkFailover",
+      "name": "[parameters('AutomationAccountName')]",
       "type": "Microsoft.Automation/automationAccounts",
       "apiVersion": "2022-08-08",
       "location": "[resourceGroup().location]",
       "identity": {
-        "type": "UserAssigned",
-        "userAssignedIdentities": {
-          "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'AzureSqlBulkFailoverBootstrapIdentity')]":{
-          }
-        }
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.Resources/deploymentScripts', 'deleteAzureSqlBulkFailoverRunbook')]"
-      ],
-      "tags": {},
+        "type": "SystemAssigned"
+        },
       "properties": {
           "comment": "Resource defined structure",
           "disableLocalAuth": false,
@@ -131,19 +40,17 @@
           }
       },
       "resources": [
-        // An operator executes (or schedules) AzureSqlBulkFailoverRunbook to trigger failover for many databases. 
+        // The runbook that will be executed to perform the bulk failover
         {
           "type": "Microsoft.Automation/automationAccounts/runbooks",
           "apiVersion": "2022-08-08",
-          "name": "AzureSqlBulkFailover/AzureSqlBulkFailoverRunbook",
+          "name": "[concat(parameters('AutomationAccountName'),'/AzureSqlBulkFailoverRunbook')]",
           "location": "[resourceGroup().location]",
           "dependsOn": [
-            "[resourceId('Microsoft.Resources/deploymentScripts', 'deleteAzureSqlBulkFailoverRunbook')]",
-            "[resourceId('Microsoft.Automation/automationAccounts', 'AzureSqlBulkFailover')]",
-            "AzureSqlBulkFailover"
+            "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
           ],
           "properties": {
-            "description": "Triggers failover for all databases and pools in a server",
+            "description": "Downloads scripts from GitHub (AzureSqlBulkFailover) from the selected branch and executes them causing bulk failover of all databases in the selected serveer.",
             "runbookType": "PowerShell7",
             "logProgress": "true",
             "logVerbose": "true",

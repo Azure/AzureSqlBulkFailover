@@ -20,14 +20,14 @@
 
 #Read input parameters subscriptionId and ResourceGroupName and LogicalServerName
 param(
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory=$true)]
     [string]$SubscriptionId,
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory=$true)]
     [string]$ResourceGroupName,
     [Parameter(Mandatory=$true)]
     [string]$LogicalServerName,
     [Parameter(Mandatory=$true)]
-    [string]$branch_name=$(Get-AutomationVariable -Name 'branch_name').Value
+    [string]$branch_name="Main"
 )
 
 $scriptStartTime = (Get-Date).ToUniversalTime().ToString("o")
@@ -51,11 +51,6 @@ function Get-AllFiles ([string]$remoteRootUri, [string]$localRootPath, [ref]$all
   $manifestFilePath = [string]""
   Get-File -remoteRootUri $remoteRootUri -remoteFile 'Source/RunbookEntrypointManifest.json' -localRootPath $localRootPath -localFilePath ([ref]$manifestFilePath)
   $allFiles.Value = (Get-Content $manifestFilePath | ConvertFrom-Json)
-
-  # set the subscriptionID if not set
-  if ([string]::IsNullOrEmpty($SubscriptionId)) {
-    $SubscriptionId = (Get-AzContext).Subscription.Id
-  }
 
   # create the script objects and set their execution parameters
   foreach ($file in $allFiles.Value) {

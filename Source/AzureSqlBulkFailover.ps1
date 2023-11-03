@@ -335,7 +335,7 @@ class ServerList : System.Collections.Generic.List[object]{
     # Adds the list of servers in a subscriptions resource group to this list. If no logical server name is provided, all logical servers 
     # are enumerated. If $logicalServerName is provided, the method just adds that server to the list. 
     [int]AddServers([string]$subscriptionId, [string]$resourceGroupName, [string]$logicalServerName) {
-        $url = $this.ServerListUrl($subscriptionId,$resourceGroupName)
+        $url = [ServerList]::ServerListUrl($subscriptionId,$resourceGroupName)
         $response = Invoke-AzRestMethod -Method GET -Path $url;
         $content = ($response.Content | ConvertFrom-Json).value;
         [int]$count = 0;
@@ -481,39 +481,22 @@ try
     # Set the strict variable declarations and verbose logging preference to continue so we can see the output
     Set-StrictMode -Version Latest
     $VerbosePreference = "Continue"
-
+ 
     # Get the input parameters    
     [string]$SubscriptionId = $ScriptProperties.SubscriptionId;
     [string]$ResourceGroupName = $ScriptProperties.ResourceGroupName;
     [string]$LogicalServerName = $ScriptProperties.LogicalServerName;
-    Log "Starting AzureSqlBulkFailover.ps1: sub '$($SubscriptionId)', resource group '$($ResourceGroupName)', server '$($LogicalServerName)'. Authenticating....."
+    Log "Starting AzureSqlBulkFailover.ps1 on sub:'$($SubscriptionId)', resource group: '$($ResourceGroupName)', server: '$($LogicalServerName)'..."
 
-    # get the resource group that the automation account was created in
-    $AutomationResourceGroupName = $(Get-AutomationVariable -name "automation_resource_group_name")
-    Log "Automation resource group: $AutomationResourceGroupName)"
-
-    # Get the identity using the resourcegroupname and the known name of the identity
-    $identity = Get-AzUserAssignedIdentity -ResourceGroupName $AutomationResourceGroupName -Name 'AzureSqlBulkFailoverRunbookIdentity'
-    Log "Using identity: $($identity.ClientId)"
-    
-    # Get the default or parameter defined subscription
-    if ([String]::IsNullOrEmpty($SubscriptionId)) {
-        $AzureContext = (Connect-AzAccount -Identity $identity.ClientId).context
-        $subscriptionId = $AzureContext.Subscription
-        Log "Using context subscription $subscriptionId"
-    } else {
-        Log "Using explicit subscription $subscriptionId"
-        $subscriptionId = $SubscriptionId
-        $AzureContext = (Connect-AzAccount -Identity $identity.ClientId -Subscription $subscriptionId).context
-    }
-
-    # set and store context, subscriptionId and the resource group name
-    Set-AzContext -SubscriptionName $subscriptionId -DefaultProfile $AzureContext
+    # Connect to the sub using a system assigned managed identity
+    Log "Using subscription $subscriptionId"
+    $AzureContext = (Connect-AzAccount -Identity -Subscription $SubscriptionId).context
+    Log "Connected to subscription $($AzureContext.Subscription.Name)."
 
     # Create the bulk failover object and run the failover process
-    Log "Creating BulkFailover"
+    Log "Creating BulkFailover..."
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
-    Log "Initiating bulk failover for subscription: $subscriptionId"
+    Log "Initiating bulk failover for server: $LogicalServerName..."
     $bulkFailover.Run($SubscriptionId, $ResourceGroupName, $LogicalServerName);
     Log "Failover process complete."
 }
