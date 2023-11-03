@@ -44,7 +44,7 @@
         {
           "type": "Microsoft.Automation/automationAccounts/runbooks",
           "apiVersion": "2022-08-08",
-          "name": "AzureSqlBulkFailover/AzureSqlBulkFailoverRunbook",
+          "name": "[concat(parameters('AutomationAccountName'),'/AzureSqlBulkFailoverRunbook')]",
           "location": "[resourceGroup().location]",
           "dependsOn": [
             "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
