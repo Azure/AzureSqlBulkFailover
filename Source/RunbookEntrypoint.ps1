@@ -26,8 +26,8 @@ param(
     [string]$ResourceGroupName,
     [Parameter(Mandatory=$true)]
     [string]$LogicalServerName,
-    [Parameter(Mandatory=$true)]
-    [string]$branch_name="Main"
+    [Parameter(Mandatory=$false)]
+    [string]$branch_name="main"
 )
 
 $scriptStartTime = (Get-Date).ToUniversalTime().ToString("o")
