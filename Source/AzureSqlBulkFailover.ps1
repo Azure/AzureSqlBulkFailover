@@ -147,7 +147,10 @@ class DatabaseResource {
     {
         #only failover resources that should be failed over, set the FailoverStatus of the rest to skipped
         if ($this.ShouldFailover) {
-            $response = Invoke-AzRestMethod -Method POST -Path $this.FailoverUri();
+            $url = $this.FailoverUri();
+            Log "Failover: Invoke-AzRestMethod -Method GET -Path $url"
+            $response = Invoke-AzRestMethod -Method POST -Path $url;
+            Log "response StatusCode: $($response.StatusCode)"
             if (($response.StatusCode -eq 202) -or ($response.StatusCode -eq 200)) {# check if the failover request was accepted or completed Succeededfully
                 # get the header that gives us the URL to query the FailoverStatus of the request and remove the ARM prefix, add it to the resource as the FailoverStatus path
                 # get the AsynOperationHeader value from the response and parse out the path to the FailoverStatus of the request
@@ -173,7 +176,10 @@ class DatabaseResource {
     # only update FailoverStatus on pending resources
     [void]UpdateFailoverStatus(){
         if ($this.FailoverStatus -eq [FailoverStatus]::InProgress) {
+            $url = $this.FailoverStatusPath;
+            Log "UpdateFailoverStatus: Invoke-AzRestMethod -Method GET -Path $url"
             $response = Invoke-AzRestMethod -Method GET -Path ($this.FailoverStatusPath)
+            Log "response StatusCode: $($response.StatusCode)"
             if ($response.StatusCode -eq 200) {
                 # check the content of the request to figure out if the failover completed Succeededfully
                 # if their was no error but the failover has not yest completed then do nothing
@@ -275,7 +281,9 @@ class ResourceList : System.Collections.Generic.List[object]{
         # loop while $url is not null
         $resourcesToAdd = New-Object -TypeName System.Collections.Hashtable
         do {
+            Log "AddResources: Invoke-AzRestMethod -Method GET -Path $url"
             $response = Invoke-AzRestMethod -Method GET -Path $url;
+            Log "response StatusCode: $($response.StatusCode)"
             $content = ($response.Content | ConvertFrom-Json).value;
             $content | ForEach-Object {
                 # create a resource object and add it to the hashtable using the failoverkey as the key
@@ -334,7 +342,9 @@ class ServerList : System.Collections.Generic.List[object]{
     # are enumerated. If $logicalServerName is provided, the method just adds that server to the list. 
     [int]AddServers([string]$subscriptionId, [string]$resourceGroupName, [string]$logicalServerName) {
         $url = [ServerList]::ServerListUrl($subscriptionId,$resourceGroupName)
+        Log "AddServers: Invoke-AzRestMethod -Method GET -Path $url"
         $response = Invoke-AzRestMethod -Method GET -Path $url;
+        Log "response StatusCode: $($response.StatusCode)"
         $content = ($response.Content | ConvertFrom-Json).value;
         [int]$count = 0;
         $content | ForEach-Object {
@@ -433,6 +443,11 @@ class BulkFailover{
         
         Log "Found $count total servers in subscription $subscriptionId";
         $this.servers | Format-Table
+
+        if ($this.servers.Count -eq 0) {
+            $errorMsg = "No servers found in subscription: $subscriptionId, resourceGroup: $resourceGroupName. Check the server name, resource group name and verify script has access to it.";
+            throw $errorMsg;
+        }
         
         # add the resources for all the servers and log the start of the failover process and the time
         $count = $this.AddResources();
@@ -500,7 +515,7 @@ try
 }
 catch {
     # Complete all progress bars and write the error
-    Write-Output -Message "Exception: $($_.Exception)"
+    Log -Message "Exception: $($_.Exception)"
     throw $_.Exception
 }
 
