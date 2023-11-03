@@ -489,7 +489,7 @@ try
     Log "Starting AzureSqlBulkFailover.ps1 on sub:'$($SubscriptionId)', resource group: '$($ResourceGroupName)', server: '$($LogicalServerName)'..."
 
     # Connect to the sub using a system assigned managed identity
-    Log "Using explicit subscription $subscriptionId"
+    Log "Using subscription $subscriptionId"
     $AzureContext = (Connect-AzAccount -Identity -Subscription $SubscriptionId).context
     Log "Connected to subscription $($AzureContext.Subscription.Name)."
 
