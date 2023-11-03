@@ -1,0 +1,6 @@
+[
+    {
+        "File":  "Source/AzureSqlBulkFailover.ps1",
+        "Execute":  true
+    }
+]

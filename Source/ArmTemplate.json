@@ -1,0 +1,67 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "AutomationAccountName":{
+      "type": "string",
+      "defaultValue":"AzureSqlBulkFailover",
+      "metadata": {
+        "description": "The name of the automation account must be unique for the subscription. You must delete the existing account to redeploy with the same name."
+      }
+    },
+    "branchName": {
+      "type": "string",
+      "defaultValue": "main",
+      "metadata": {
+        "description": "The name of the branch to pull the bulk failover scripts from, for official release leave as main, for debugging changes enter the name of the branch where your modified scripts are located (must be in the same AzureSqlBulkFailover GitHub repository)."
+      }
+    }
+  },
+
+  "resources": [    
+    // An Azure Automation account is a container for runbooks. 
+    {
+      "name": "[parameters('AutomationAccountName')]",
+      "type": "Microsoft.Automation/automationAccounts",
+      "apiVersion": "2022-08-08",
+      "location": "[resourceGroup().location]",
+      "identity": {
+        "type": "SystemAssigned"
+        },
+      "properties": {
+          "comment": "Resource defined structure",
+          "disableLocalAuth": false,
+          "sku": {
+            "name": "Basic"
+          },
+          "encryption": {
+            "keySource": "Microsoft.Automation",
+            "identity": {}
+          }
+      },
+      "resources": [
+        // The runbook that will be executed to perform the bulk failover
+        {
+          "type": "Microsoft.Automation/automationAccounts/runbooks",
+          "apiVersion": "2022-08-08",
+          "name": "[concat(parameters('AutomationAccountName'),'/AzureSqlBulkFailoverRunbook')]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+          ],
+          "properties": {
+            "description": "Downloads scripts from GitHub (AzureSqlBulkFailover) from the selected branch and executes them causing bulk failover of all databases in the selected serveer.",
+            "runbookType": "PowerShell7",
+            "logProgress": "true",
+            "logVerbose": "true",
+            "logActivityTrace": 0,
+            "publishContentLink": {
+              "uri": "[concat('https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/',parameters('branchName'),'/Source/RunbookEntrypoint.ps1')]"
+            }
+          }
+        }]
+    }
+  ],
+    
+"outputs": {}
+}

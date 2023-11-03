@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Deploy AzureSqlBulkFailover runbook to your Azure Subscription</title>
+    <style>
+        .deploy-button {
+            background: url(https://aka.ms/deploytoazurebutton);
+            background-repeat: no-repeat;
+            background-position: center;
+            background-color: transparent;
+            background-size: contain;
+            width: 200px;
+            height: 41px;
+            border: none;
+            cursor: pointer;
+            position: relative;
+        }
+        .deploy-button:hover {
+            transition-duration: 0.4s;
+            background-color: #0078d4;
+            width: 210px;
+            height: 45px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Deploy AzureSqlBulkFailover runbook to your Azure Subscription.</h1>
+    <p>Use this template to deploy the AzureSqlBulkFailover runbook to your Azure Subscription. Note that if you have already installed it you must manually uninstall it from your subscription before reinstalling.</p>
+    <button  onclick="deployTemplate()" class="deploy-button"></button>
+    <script>
+        function deployTemplate() {
+            var branchName = "main";
+            // Get the url from the referrer (the page that called this)
+            const url = document.referrer;
+            // Show the URL to the user
+            // alert(url);
+            // The referrer will look something like this: "https://github.com/Azure/AzureSqlBulkFailover/blob/main/AzureSqlBulkFailoverSetup.md"
+            // check if we can get the branch name from the url
+            if (url.startsWith("https://github.com/") && url.endsWith("/AzureSqlBulkFailoverSetup.md") && url.indexOf("blob/") > 0) {
+                branchName = url.substring(url.indexOf("blob/") + 5, url.indexOf("/AzureSqlBulkFailoverSetup.md"));
+            }
+            // https://stackoverflow.com/questions/52438431/arm-template-functions-not-working-with-default-values
+            // Cant figure out how to pass the branchName to the template, so we will just allow the default and devs will have to enter the branch to pull the script
+            const escapedUrl = "https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzureSqlBulkFailover%2F" + escape(branchName) + "%2FSource%2FArmTemplate.json";
+            // go to the escapedUrl
+            location.assign(escapedUrl);
+        }
+    </script>
+</body>
+</html>
