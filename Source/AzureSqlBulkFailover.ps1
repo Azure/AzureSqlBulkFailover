@@ -495,6 +495,9 @@ try
     Set-StrictMode -Version Latest
     $VerbosePreference = "Continue"
  
+    # Make script stop on exception
+    $ErrorActionPreference = "Stop"
+    
     # Get the input parameters    
     [string]$SubscriptionId = $ScriptProperties.SubscriptionId;
     [string]$ResourceGroupName = $ScriptProperties.ResourceGroupName;
@@ -515,8 +518,8 @@ try
 }
 catch {
     # Complete all progress bars and write the error
-    Log -Message "Exception: $($_.Exception)"
-    throw $_.Exception
+    Log -Message "Exception: $($_)"
+    throw
 }
 
 #endregion

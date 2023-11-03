@@ -62,6 +62,8 @@ function Get-AllFiles ([string]$remoteRootUri, [string]$localRootPath, [ref]$all
     Add-Member -InputObject $file -NotePropertyName LogicalServerName -NotePropertyValue $LogicalServerName
   }
 }
+# Make script stop on exception
+$ErrorActionPreference = "Stop"
 
 $remoteRootUri = "https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/$branch_name"
 $localRootPath = [System.IO.Path]::Combine($env:TEMP, "AzureSqlBulkFailover_$([System.Guid]::NewGuid())")
