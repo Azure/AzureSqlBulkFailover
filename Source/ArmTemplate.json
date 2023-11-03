@@ -47,7 +47,7 @@
           "name": "AzureSqlBulkFailover/AzureSqlBulkFailoverRunbook",
           "location": "[resourceGroup().location]",
           "dependsOn": [
-            "[concat('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
+            "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
           ],
           "properties": {
             "description": "Downloads scripts from GitHub (AzureSqlBulkFailover) from the selected branch and executes them causing bulk failover of all databases in the selected serveer.",
