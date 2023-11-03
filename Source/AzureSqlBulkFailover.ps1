@@ -488,9 +488,10 @@ try
     [string]$LogicalServerName = $ScriptProperties.LogicalServerName;
     Log "Starting AzureSqlBulkFailover.ps1 on sub:'$($SubscriptionId)', resource group: '$($ResourceGroupName)', server: '$($LogicalServerName)'..."
 
-    # Get the identity and connect to the subscription
-    $identity = Get-AzUserAssignedIdentity -ResourceGroupName $ResourceGroupName -Name 'AzureSqlBulkFailoverIdentity' -SubscriptionId $SubscriptionId
-    Connect-AzAccount -Identity -AccountId $identity.ClientId
+    # Connect to the sub using a system assigned managed identity
+    Log "Using explicit subscription $subscriptionId"
+    $AzureContext = (Connect-AzAccount -Identity -Subscription $SubscriptionId).context
+    Log "Connected to subscription $($AzureContext.Subscription.Name)."
 
     # Create the bulk failover object and run the failover process
     Log "Creating BulkFailover..."
