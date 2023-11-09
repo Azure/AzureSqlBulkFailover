@@ -5,7 +5,7 @@
 # Prerequisites
 
 * You must have [deployed](./AzureSqlBulkFailoverSetup.md) the AzureSqlBulkFailover runbook into the subscription that contains your databases.
-* TODO: Role membership required
+* You must assign permissions to the automation account that was created during deployment (AzureSqlBulkFailover) so that it can access the databases that it needs to failover. See [AzureSqlBulkFailover - Permissions](./AzureSqlBulkFailoverPermissions.md) for instructions.
 
 ----
 
