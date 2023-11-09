@@ -5,7 +5,7 @@ The current version can handle Azure SQL DB databases and elastic pools. It will
 
 ## Project Information
 
-* [Support](Support.md)
+* [Support](SUPPORT.md)
 * [Deployment instructions](AzureSqlBulkFailoverSetup.md)
 * [Usage instructions](AzureSqlBulkFailoverUsage.md)
 
