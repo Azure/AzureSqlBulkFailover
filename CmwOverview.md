@@ -1,16 +1,16 @@
 # CMW Self-Service Maintenance - Overview
 
-----
+For general information about this prokect and contributing, see [README.md](./README.md).
 
 # Overview
 
 This document describes the Self-Service Maintenance process for Azure SQL Database and Azure SQL Managed Instance. 
 
-**Step 1**. [You receive a Pending Self-Service Maintenance notification](#step-1%3A-you-receive-a-pending-self-service-maintenance-notification).
+**Step 1**. [You receive a Pending Self-Service Maintenance notification](#step-1-you-receive-a-pending-self-service-maintenance-notification).
 
-**Step 2**. [You initiate failover to upgrade databases](#step-2%3A-you-initiate-failover-to-upgrade-databases).
+**Step 2**. [You initiate failover to upgrade databases](#step-2-you-initiate-failover-to-upgrade-databases).
 
-**Step 3**. [The system initiates failover for remaining databases](#step-3%3A-the-system-initiates-failover-for-remaining-databases).
+**Step 3**. [The system initiates failover for remaining databases](#step-3-the-system-initiates-failover-for-remaining-databases).
 
 ----
 

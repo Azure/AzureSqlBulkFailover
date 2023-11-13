@@ -1,11 +1,11 @@
-# Project
+# Azure SQL Bulk Failover Project
 
 AzureSqlBulkFailover is an Azure Automation runbook that provides fast failover for a large set of Azure SQL databases. 
 The current version can handle Azure SQL DB databases and elastic pools. It will be extended to support Azure SQL Managed Instance resources. 
 
-## Project Information
+## Using Azure SQL Bulk Failover
 
-* [Support](SUPPORT.md)
+* [Self Service Maintenance Overview](CmwOverview.md)
 * [Deployment instructions](AzureSqlBulkFailoverSetup.md)
 * [Usage instructions](AzureSqlBulkFailoverUsage.md)
 
@@ -22,6 +22,8 @@ provided by the bot. You will only need to do this once across all repos using o
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+
+Contact [Support](SUPPORT.md) if you have any questions regarding usage or implementation.
 
 ## Trademarks
 
