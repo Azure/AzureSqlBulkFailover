@@ -44,7 +44,7 @@ Note:
 
 :exclamation: **Important:** _The process described below is appropriate if you wish to trigger failover for a small number of databases.
 For simplified failover of dozens or hundreds of databases, use [AzureSqlBulkFailover](AzureSqlBulkFailoverUsage.md) to trigger the failover 
-at the desired time. Then return to this page and continue with **Step 3**._ 
+at the desired time. 
 
 1. Go to http://portal.azure.com. 
     * For Azure SQL Database elastic pools and databases, the account must belong to the _Subscription Owner_ or _SQL DB Contributor roles_. 
@@ -109,14 +109,4 @@ You may receive one of these errors:
 
 > <span style="color:red"> _There was a recent failover on the managed instance. At least 15 minutes must pass between instance failovers._ </span>
 
-To provide a consistent experience for all customers, the system returns this error if there are repeated identical requests for the same action on the same resource. The error means that the system did receive your earlier request. There is no benefit from re-running the same command. 
-
-
-----
-----
-
-**TO DO**:
-* Cross-Ring and Cross-Region Maintenance Coordination
-* FAQ: 
-   * Support/escalation process if there are any surprises
-* Update aka short link. 
+To provide a consistent experience for all customers, the system returns this error if there are repeated identical requests for the same action on the same resource. The error means that the system did receive your earlier request. There is no benefit from re-running the same command.
