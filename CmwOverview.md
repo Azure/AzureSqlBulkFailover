@@ -1,16 +1,16 @@
 # CMW Self-Service Maintenance - Overview
 
-----
+For general information about this prokect and contributing, see [README.md](./README.md).
 
 # Overview
 
 This document describes the Self-Service Maintenance process for Azure SQL Database and Azure SQL Managed Instance. 
 
-**Step 1**. [You receive a Pending Self-Service Maintenance notification](#step-1%3A-you-receive-a-pending-self-service-maintenance-notification).
+**Step 1**. [You receive a Pending Self-Service Maintenance notification](#step-1-you-receive-a-pending-self-service-maintenance-notification).
 
-**Step 2**. [You initiate failover to upgrade databases](#step-2%3A-you-initiate-failover-to-upgrade-databases).
+**Step 2**. [You initiate failover to upgrade databases](#step-2-you-initiate-failover-to-upgrade-databases).
 
-**Step 3**. [The system initiates failover for remaining databases](#step-3%3A-the-system-initiates-failover-for-remaining-databases).
+**Step 3**. [The system initiates failover for remaining databases](#step-3-the-system-initiates-failover-for-remaining-databases).
 
 ----
 
@@ -44,7 +44,7 @@ Note:
 
 :exclamation: **Important:** _The process described below is appropriate if you wish to trigger failover for a small number of databases.
 For simplified failover of dozens or hundreds of databases, use [AzureSqlBulkFailover](AzureSqlBulkFailoverUsage.md) to trigger the failover 
-at the desired time. Then return to this page and continue with **Step 3**._ 
+at the desired time. 
 
 1. Go to http://portal.azure.com. 
     * For Azure SQL Database elastic pools and databases, the account must belong to the _Subscription Owner_ or _SQL DB Contributor roles_. 
@@ -86,37 +86,17 @@ After all databases are upgraded, you will receive another maintenance notificat
 
 ## How can I upgrade many databases at once? 
 
-These instructions allow failover of from one to a few databases. We are working on a simplified way to trigger failover of many databases at the same time, and we will update this documentation when this is ready for customer use. 
+These instructions allow failover of from one to a few databases. We have implemented the AzureSqlBulkFailover runbook as a simplified way to trigger failover of many databases at the same time. Instruction for [deployment](AzureSqlBulkFailoverSetup.md) and [usage](AzureSqlBulkFailoverUsage.md) are provided here. 
 
-## What is the maximum time that should be required for upgrade of any single database? 
+## What is the maximum time that should be required for upgrade of any single database and server with hundreds of databases? 
 
-Our current goal is an SLA of < 30 minutes, although most most databases will require less than 5 minutes. We will be monitoring the system to collect data about performance under a variety of conditions, and we will look for opportunities to provide the most consistent experience. 
+Currently, using this failover technique, a signle database will be failedover in seconds and a server with a large number of databases will be completely failed over within 15 to 30 minutes, although most most servers will require less than 5 minutes. We will be monitoring the system to collect data about performance under a variety of conditions, and we will look for opportunities to provide the most consistent experience.
 
 ## How can I have the system initiate scheduled failover for me, at a precise time? 
 
-Azure SQL Self-Service Maintenance does not yet provide precise system-initiated upgrade. The customer must initiate the upgrade. We are planning to add scheduled failover features in the future. 
+Azure SQL Self-Service Maintenance does not yet provide precise system-initiated upgrade. The customer must initiate the upgrade. We are planning to add scheduled failover features in the future. However, if you are using Self-Service Maintenance and you are notified of a maintenance event, we will failover the database soon after the deadline and in the future at the deadline.
+Another way that a scheduled maintenance can be implemented for customers that have Self-Service Maintenance is by automating the runbook execution at a specific time during the maintenance window. For more information, see [Automate Runbook Execution](https://learn.microsoft.com/en-us/azure/automation/shared-resources/schedules)
 
 ## What is the relationship of this to [Azure SQL Maintenance Window](https://learn.microsoft.com/en-us/azure/azure-sql/database/maintenance-window?view=azuresql-mi) features? 
 
-The widely-available Azure SQL Maintenance Window features allow customers to limit planned maintenance to either weekday (Monday - Thursday) or weekend (Friday - Sunday) evenings, 10pm to 6am. This document relates to a new, pre-release capability that provides more precise maintenance windows, and increases customer control by allowing customers to directly initiate the upgrade of particular databases. 
-
-## Why did I receive the error "At least 15 minutes must pass between failovers"?
-You may receive one of these errors: 
-
-> <span style="color:red"> _There was a recent failover on the database or pool if database belongs in an elastic pool.  At least 15 minutes must pass between failovers._</span>
-
-  or
-
-> <span style="color:red"> _There was a recent failover on the managed instance. At least 15 minutes must pass between instance failovers._ </span>
-
-To provide a consistent experience for all customers, the system returns this error if there are repeated identical requests for the same action on the same resource. The error means that the system did receive your earlier request. There is no benefit from re-running the same command. 
-
-
-----
-----
-
-**TO DO**:
-* Cross-Ring and Cross-Region Maintenance Coordination
-* FAQ: 
-   * Support/escalation process if there are any surprises
-* Update aka short link. 
+The widely-available Azure SQL Maintenance Window features allow customers to limit planned maintenance to either weekday (Monday - Thursday) or weekend (Friday - Sunday) evenings, 10pm to 6am. This document relates to a new, pre-release capability that provides more precise maintenance windows, and increases customer control by allowing customers to directly initiate the upgrade of particular databases.

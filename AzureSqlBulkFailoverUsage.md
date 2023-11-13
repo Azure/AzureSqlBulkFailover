@@ -13,8 +13,16 @@
 
 1. Log in to the Azure portal https://portal.azure.com. 
 2. Browse to the AzureSqlBulkFailoverRunbook resource. You can do this by entering "_AzureSqlBulkFailover**Runbook**_" in the search bar at the top of the page. Note that you want the Runbook resource, not the Automation Account resource with a similar name "AzureSqlBulkFailover".
-3. Click the **Start** button to begin failover. To see interdiate output as the process executes, click the **Refresh** button. 
+3. Click the **Start** button to begin failover. To see interdiate output as the process executes, select the output tab and click the **Refresh** button. 
     > ![Runbook Start Button](./Media/RunbookStart.png)
-4. The output will automatically refresh when the operation completes. Look for the message ```<todo>``` at the end of the output. This indicates that all databases were upgraded.
+4. The output will automatically refresh when the operation completes. Look for the message
+```
+VERBOSE: 2023-11-13 19:14:03 => Succesfully failedover 2 out of 2 resources. Process took: 00:01:34.4271907.
+
+VERBOSE: 2023-11-13 19:14:03 => All eligable resources failed over successfully.
+
+VERBOSE: 2023-11-13 19:14:03 => Failover process complete.
+```
+at the end of the output. This indicates that all databases were upgraded. Ensure that the number of databases failed over is not 0 and corresponds to the number of databases you expected to be failed over.
 
 
