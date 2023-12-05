@@ -1,6 +1,6 @@
 # CMW Self-Service Maintenance - Overview
 
-For general information about this prokect and contributing, see [README.md](./README.md).
+For general information about this project and contributing, see [README.md](./README.md).
 
 # Overview
 
@@ -10,7 +10,7 @@ This document describes the Self-Service Maintenance process for Azure SQL Datab
 
 **Step 2**. [You initiate failover to upgrade databases](#step-2-you-initiate-failover-to-upgrade-databases).
 
-**Step 3**. [The system initiates failover for remaining databases](#step-3-the-system-initiates-failover-for-remaining-databases).
+**Step 3**. [The system initiates failover for any remaining databases](#step-3-the-system-initiates-failover-for-remaining-databases).
 
 ----
 
@@ -18,7 +18,6 @@ This document describes the Self-Service Maintenance process for Azure SQL Datab
 
 * This process is invitation-only and requires subscription-level enrollment by Microsoft engineers. 
 * You must [configure a service health alert](https://learn.microsoft.com/en-us/azure/azure-sql/database/advance-notifications?view=azuresql#configure-an-advance-notification) to receive push notifications in advance of planned maintenance. 
-* For rapid failover of many databases at once, you must [deploy AzureSqlBulkFailover](./AzureSqlBulkFailoverSetup.md) into the subscription that contains your databases. 
 
 ----
 
@@ -42,10 +41,8 @@ Note:
 
 # Step 2: You initiate failover to upgrade databases
 
-:exclamation: **Important:** _The process described below is appropriate if you wish to trigger failover for a small number of databases.
-For simplified failover of dozens or hundreds of databases, use [AzureSqlBulkFailover](AzureSqlBulkFailoverUsage.md) to trigger the failover 
-at the desired time. 
-
+:exclamation: **Important:** The process described below is appropriate if you wish to trigger failover for a small number of databases.
+For simplified failover of dozens or hundreds of SQL DB resources, you must [deploy AzureSqlBulkFailover](./AzureSqlBulkFailoverSetup.md) into the subscription that contains your databases and [use AzureSqlBulkFailover](AzureSqlBulkFailoverUsage.md) to trigger the failover at the desired time. Currently this solution doesn't support Azure SQL MI resources.
 1. Go to http://portal.azure.com. 
     * For Azure SQL Database elastic pools and databases, the account must belong to the _Subscription Owner_ or _SQL DB Contributor roles_. 
     * For Azure SQL Managed Instances, the account must belong to the _Subscription Owner_ or _Managed Instance Contributor_ roles. 
@@ -90,7 +87,7 @@ These instructions allow failover of from one to a few databases. We have implem
 
 ## What is the maximum time that should be required for upgrade of any single database and server with hundreds of databases? 
 
-Currently, using this failover technique, a signle database will be failedover in seconds and a server with a large number of databases will be completely failed over within 15 to 30 minutes, although most most servers will require less than 5 minutes. We will be monitoring the system to collect data about performance under a variety of conditions, and we will look for opportunities to provide the most consistent experience.
+Currently, using this failover technique, a single database will be failedover in seconds and a server with a large number of databases will be completely failed over within 15 to 30 minutes, although most servers will require less than 5 minutes. We will be monitoring the system to collect data about performance under a variety of conditions, and we will look for opportunities to provide the most consistent experience.
 
 ## How can I have the system initiate scheduled failover for me, at a precise time? 
 
