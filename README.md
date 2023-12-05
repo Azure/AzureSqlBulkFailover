@@ -1,7 +1,7 @@
 # Azure SQL Bulk Failover Project
 
 AzureSqlBulkFailover is an Azure Automation runbook that provides fast failover for a large set of Azure SQL databases. 
-The current version can handle Azure SQL DB databases and elastic pools. It will be extended to support Azure SQL Managed Instance resources. 
+The current version can handle Azure SQL DB databases and elastic pools. We currently have no plans to extend support to Azure SQL Managed Instance resources, as the limited number of instances does not necessitate it.
 
 ## Using Azure SQL Bulk Failover
 
