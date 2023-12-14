@@ -35,7 +35,7 @@ You receive a maintenance notification for an upcoming maintenance period. The c
 
 Note: 
 * The text "_You may initiate upgrade of your databases at any time_" distinguishes _Self-Service Maintenance_ notifications from other maintenance events.  The notification will also identify the subscription.
-* The deadline (2023-7-3 in this example) should allow at least 7 days to prepare. At any time prior to this deadline, you can initiate failover and complete the upgrade for a database, as described below. 
+* The deadline (2023-7-3 in this example) should allow at least 10 days to prepare. At any time prior to this deadline, you can initiate failover and complete the upgrade for a database, as described below. 
 
 ----
 
