@@ -42,7 +42,7 @@ Note:
 # Step 2: You initiate failover to upgrade databases
 
 :exclamation: **Important:** The process described below is appropriate if you wish to trigger failover for a small number of databases.
-For simplified failover of dozens or hundreds of SQL DB resources, you must [deploy AzureSqlBulkFailover](./AzureSqlBulkFailoverSetup.md) into the subscription that contains your databases and [use AzureSqlBulkFailover](AzureSqlBulkFailoverUsage.md) to trigger the failover at the desired time. Currently this solution doesn't support Azure SQL MI resources.
+For simplified failover of dozens or hundreds of SQL DB resources, you can [deploy AzureSqlBulkFailover](./AzureSqlBulkFailoverSetup.md) into a subscription and grant the automation account access to the resource group that contains your databases and then use use AzureSqlBulkFailover to trigger the failover at the desired time. Currently this solution doesn't support Azure SQL MI resources.
 1. Go to http://portal.azure.com. 
     * For Azure SQL Database elastic pools and databases, the account must belong to the _Subscription Owner_ or _SQL DB Contributor roles_. 
     * For Azure SQL Managed Instances, the account must belong to the _Subscription Owner_ or _Managed Instance Contributor_ roles. 
