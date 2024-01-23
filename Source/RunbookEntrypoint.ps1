@@ -27,11 +27,11 @@ param(
     # ResourceGroupName: This is the name of the resource group where the resources to be failed over are located.
     # Use * to target all resource groups in the subscription.
     [Parameter(Mandatory=$true)]
-    [string]$ResourceGroupName,
+    [string]$ResourceGroupName = "Use * for all resource groups",
     # LogicalServerName: This is the name of the logical server where the resources to be failed over are located.
     # Use * to target all logical servers in the subscription.
     [Parameter(Mandatory=$true)]
-    [string]$LogicalServerName,
+    [string]$LogicalServerName = "Use * for all logical servers",
     # branch_name: This is the name of the branch to use to get the scripts that are eecuted by the runbook.
     # Use main to target the main branch, leaving this empty will default to main.
     [Parameter(Mandatory=$false)]
