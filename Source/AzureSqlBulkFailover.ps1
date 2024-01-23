@@ -498,6 +498,15 @@ try
     # Make script stop on exception
     $ErrorActionPreference = "Stop"
     
+    # Set any parameters that are * to $null
+    # Iterate over all the properties of the ScriptProperties object
+    $ScriptProperties.PSObject.Properties | ForEach-Object {
+        # If the property value is *, set it to $null
+        if ($_.Value -eq "*") {
+            $ScriptProperties.$($_.Name) = $null
+        }
+    }
+
     # Get the input parameters    
     [string]$SubscriptionId = $ScriptProperties.SubscriptionId;
     [string]$ResourceGroupName = $ScriptProperties.ResourceGroupName;
