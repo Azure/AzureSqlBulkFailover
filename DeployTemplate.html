@@ -41,7 +41,7 @@
             }
             // https://stackoverflow.com/questions/52438431/arm-template-functions-not-working-with-default-values
             // Cant figure out how to pass the branchName to the template, so we will just allow the default and devs will have to enter the branch to pull the script
-            const escapedUrl = "https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzureSqlBulkFailover%2F" + escape(branchName) + "%2FSource%2FArmTemplate.json";
+            const escapedUrl = "https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzureSqlBulkFailover%2F" + encodeURIComponent(branchName) + "%2FSource%2FArmTemplate.json";
             // go to the escapedUrl
             location.assign(escapedUrl);
         }
