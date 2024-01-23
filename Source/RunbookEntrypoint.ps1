@@ -23,7 +23,7 @@ param(
     # SubscriptionId: This is the ID of the subscription where the resources to be failed over are located.
     # Use * to target the default subscription in the tenant.
     [Parameter(Mandatory=$true)]
-    [string]$SubscriptionId = "Use * for default subscription",
+    [string]$SubscriptionId,
     # ResourceGroupName: This is the name of the resource group where the resources to be failed over are located.
     # Use * to target all resource groups in the subscription.
     [Parameter(Mandatory=$true)]
