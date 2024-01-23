@@ -504,21 +504,14 @@ try
     [string]$LogicalServerName = $ScriptProperties.LogicalServerName;
 
     # If the parameter is * then set it to $null, 
-    # else if it starts with "Use *" then throw an error asking user to set the value
     if ($SubscriptionId -eq "*") {
         $SubscriptionId = $null;
-    } elseif ($SubscriptionId.StartsWith("Use *")) {
-        throw "Please set the SubscriptionId parameter to the subscription ID to be used or *.";
-    }
+    } 
     if ($ResourceGroupName -eq "*") {
         $ResourceGroupName = $null;
-    } elseif ($ResourceGroupName.StartsWith("Use *")) {
-        throw "Please set the ResourceGroupName parameter to the resource group name to be used or *.";
-    }
+    } 
     if ($LogicalServerName -eq "*") {
         $LogicalServerName = $null;
-    } elseif ($LogicalServerName.StartsWith("Use *")) {
-        throw "Please set the LogicalServerName parameter to the logical server name to be used or *.";
     }
 
     Log "Starting AzureSqlBulkFailover.ps1 on sub:'$($SubscriptionId)', resource group: '$($ResourceGroupName)', server: '$($LogicalServerName)'..."
