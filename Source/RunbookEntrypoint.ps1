@@ -21,6 +21,7 @@
 #Read input parameters subscriptionId and ResourceGroupName and LogicalServerName
 param(
     # SubscriptionId: This is the ID of the subscription where the resources to be failed over are located.
+    # Use * to target the default subscription in the tenant.
     [Parameter(Mandatory=$true)]
     [string]$SubscriptionId,
     # ResourceGroupName: This is the name of the resource group where the resources to be failed over are located.
