@@ -18,6 +18,7 @@
      > ![Runbook Parameters](./Media/RunbookParameters.png)
    - Enter values for the subscription, resource group and server.
      Warning: if you assign access to the runbook to multiple resource groups and the use the * for the resource group and server name when running it, it will failover all servers in all resource groups where it has access.
+   - You may leave the branch name empty unless you have a specific requirement for a custom script execution located on a public branch within the [GitHub](https://github.com/Azure/AzureSqlBulkFailover) repository.
    - Select "run on azure" and click start.
 4. To see intermediate output as the process executes, select the output tab and click the **Refresh** button. 
     > ![Runbook Start Button](./Media/RunbookStart.png)
