@@ -12,3 +12,4 @@ To do this, follow these steps:
 ![Access Control](./Media/AccessControl.png)
 You should see the automation account listed with the role you assigned.
 ![Resource Access](./Media/ResourceAccess.png)
+Note that when running the runbook with "*" values under server and resource group, it will failover all servers in all resource groups that it has access to.
