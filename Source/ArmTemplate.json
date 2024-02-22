@@ -59,7 +59,19 @@
               "uri": "[concat('https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/',parameters('branchName'),'/Source/RunbookEntrypoint.ps1')]"
             }
           }
-        }]
+        },
+        {
+          "type": "Microsoft.Automation/automationAccounts/variables",
+          "apiVersion": "2022-08-08",
+          "name": "[concat(parameters('automationAccountName'), '/LogLevel')]",
+          "dependsOn": [
+              "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+          ],
+          "properties": {
+              "isEncrypted": false,
+              "value": "Minimal"
+          }
+      }]
     }
   ],
     
