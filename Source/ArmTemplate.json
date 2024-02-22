@@ -19,7 +19,6 @@
   },
 
   "resources": [    
-    // An Azure Automation account is a container for runbooks. 
     {
       "name": "[parameters('AutomationAccountName')]",
       "type": "Microsoft.Automation/automationAccounts",
@@ -40,7 +39,6 @@
           }
       },
       "resources": [
-        // The runbook that will be executed to perform the bulk failover
         {
           "type": "Microsoft.Automation/automationAccounts/runbooks",
           "apiVersion": "2022-08-08",
@@ -62,7 +60,7 @@
         },
         {
           "type": "Microsoft.Automation/automationAccounts/variables",
-          "apiVersion": "2022-08-08",
+          "apiVersion": "2015-10-31",
           "name": "[concat(parameters('AutomationAccountName'), '/LogLevel')]",
           "dependsOn": [
               "[resourceId('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
