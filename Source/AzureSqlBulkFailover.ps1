@@ -12,7 +12,18 @@ param(
 
 # Base URI for ARM API calls, used to parse out the FailoverStatus path for the failover request
 $global:ARMBaseUri = "https://management.azure.com";
-$global:SleepTime = 15; # seconds
+
+# Sleep time in seconds between checking the FailoverStatus of the failover request
+$global:SleepTime = 15;
+
+# LogLevel is used to control the amount of logging in the script, all only shows critical messages, info shows normal process messages, verbose shows all messages
+$global:LogLevel = 'Info';
+try {
+    $global:LogLevel = Get-AutomationVariable -Name 'LogLevel'    
+}
+catch {
+    # do nothing
+}
 
 #region Enumerations, globals and helper functions
 # enum containing resource object FailoverStatus values
@@ -24,10 +35,23 @@ enum FailoverStatus {
     Failed # The failover process failed.
 }
 
+# Get the numeric value of the LogLevel to facilitate comparison
+function LogLevelValue($logLevel) {
+    switch ($logLevel) {
+        "Minimal" { return 0; }
+        "Info" { return 1; }
+        "Verbose" { return 2; }
+        default { return 1; }
+    }
+}
+
 # helper function to log messages to the console including the date, name of the calling class and method
-function Log($message) {
-    $outputMessage = "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message"
-    Write-Verbose $outputMessage
+# LogLevel values can be 'Minimal', 'Info', 'Verbose'
+function Log($message, $logLevel = "Info") {
+    if (LogLevelValue($logLevel) -le LogLevelValue($global:LogLevel)) {
+        $outputMessage = "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message"
+        Write-Output $outputMessage
+    }
 }
 #endregion
 
@@ -148,9 +172,9 @@ class DatabaseResource {
         #only failover resources that should be failed over, set the FailoverStatus of the rest to skipped
         if ($this.ShouldFailover) {
             $url = $this.FailoverUri();
-            Log "Failover: Invoke-AzRestMethod -Method GET -Path $url"
+            Log "Failover: Invoke-AzRestMethod -Method GET -Path $url", "Verbose"
             $response = Invoke-AzRestMethod -Method POST -Path $url;
-            Log "response StatusCode: $($response.StatusCode)"
+            Log "response StatusCode: $($response.StatusCode)", "Verbose"
             if (($response.StatusCode -eq 202) -or ($response.StatusCode -eq 200)) {# check if the failover request was accepted or completed Succeededfully
                 # get the header that gives us the URL to query the FailoverStatus of the request and remove the ARM prefix, add it to the resource as the FailoverStatus path
                 # get the AsynOperationHeader value from the response and parse out the path to the FailoverStatus of the request
@@ -158,17 +182,17 @@ class DatabaseResource {
                 $this.Message = "";
                 $CheckStatusPath = $response.Headers | Where-Object -Property Key -EQ "Azure-AsyncOperation";
                 $this.FailoverStatusPath  = ($CheckStatusPath.value[0]) -replace [regex]::Escape($($global:ARMBaseUri)), "";
-                Log "$($this.ResourceId). Monitoring failover status....";
+                Log "$($this.ResourceId). Monitoring failover status....", "Info";
             } else {# If we got another kind of response, we failed to failover the resource
                 $this.FailoverStatus = [FailoverStatus]::Failed;
                 $this.Message = $response.Content;
-                Log "$($this.ResourceId). Error: $($response.StatusCode) - $($this.Message).";
+                Log "$($this.ResourceId). Error: $($response.StatusCode) - $($this.Message).", "Minimal";
             }
         }
         else {
             $this.FailoverStatus = [FailoverStatus]::Skipped;
             $this.Message = "Resource is not eligible (is hyperscale) or does not need failover (is offline).";
-            Log "$($this.ResourceId). $($this.Message). Will be skipped.";
+            Log "$($this.ResourceId). $($this.Message). Will be skipped.", "Info";
         }
     }
 
@@ -177,33 +201,33 @@ class DatabaseResource {
     [void]UpdateFailoverStatus(){
         if ($this.FailoverStatus -eq [FailoverStatus]::InProgress) {
             $url = $this.FailoverStatusPath;
-            Log "UpdateFailoverStatus: Invoke-AzRestMethod -Method GET -Path $url"
+            Log "UpdateFailoverStatus: Invoke-AzRestMethod -Method GET -Path $url", "Verbose"
             $response = Invoke-AzRestMethod -Method GET -Path ($this.FailoverStatusPath)
-            Log "response StatusCode: $($response.StatusCode)"
+            Log "response StatusCode: $($response.StatusCode)", "Verbose"
             if ($response.StatusCode -eq 200) {
                 # check the content of the request to figure out if the failover completed Succeededfully
                 # if their was no error but the failover has not yest completed then do nothing
                 $requestContent = $response.Content | ConvertFrom-Json;
                 if ($requestContent.Status -eq "Failed") {
                     if($requestContent.Error.Code -eq "DatabaseNotInStateToFailover"){
-                        Log "$($this.ResourceId) => Is serverless and offline so doesnt need failover.";
+                        Log "$($this.ResourceId) => Is serverless and offline so doesnt need failover.", "Info";
                         $this.FailoverStatus = [FailoverStatus]::Skipped;
                         $this.Message = $requestContent.error.message;
                     }
                     else{
-                        Log "$($this.ResourceId) => Error: $($requestContent.error.message) while trying to failover. Will not retry.";
+                        Log "$($this.ResourceId) => Error: $($requestContent.error.message) while trying to failover. Will not retry.", "Minimal";
                         $this.FailoverStatus = [FailoverStatus]::Failed;
                         $this.Message = $requestContent.error.message;
                     }
                 }
                 elseif ($requestContent.Status -eq "Succeeded") {
-                    Log "$($this.ResourceId) => Successfully failed over.";
+                    Log "$($this.ResourceId) => Successfully failed over.", "Info";
                     $this.FailoverStatus = [FailoverStatus]::Succeeded;
                 }
             }
             else{
                 # if the request did not complete then report the error and remove the request from the list
-                Log "$($this.ResourceId) => Error: $($response.StatusCode) while trying to get FailoverStatus.";
+                Log "$($this.ResourceId) => Error: $($response.StatusCode) while trying to get FailoverStatus.", "Minimal";
                 $this.FailoverStatus = [FailoverStatus]::Failed;
                 $this.Message = $response.Content;
             }
@@ -281,9 +305,9 @@ class ResourceList : System.Collections.Generic.List[object]{
         # loop while $url is not null
         $resourcesToAdd = New-Object -TypeName System.Collections.Hashtable
         do {
-            Log "AddResources: Invoke-AzRestMethod -Method GET -Path $url"
+            Log "AddResources: Invoke-AzRestMethod -Method GET -Path $url", "Verbose"
             $response = Invoke-AzRestMethod -Method GET -Path $url;
-            Log "response StatusCode: $($response.StatusCode)"
+            Log "response StatusCode: $($response.StatusCode)", "Verbose"
             $content = ($response.Content | ConvertFrom-Json).value;
             $content | ForEach-Object {
                 # create a resource object and add it to the hashtable using the failoverkey as the key
@@ -342,9 +366,9 @@ class ServerList : System.Collections.Generic.List[object]{
     # are enumerated. If $logicalServerName is provided, the method just adds that server to the list. 
     [int]AddServers([string]$subscriptionId, [string]$resourceGroupName, [string]$logicalServerName) {
         $url = [ServerList]::ServerListUrl($subscriptionId,$resourceGroupName)
-        Log "AddServers: Invoke-AzRestMethod -Method GET -Path $url"
+        Log "AddServers: Invoke-AzRestMethod -Method GET -Path $url", "Verbose"
         $response = Invoke-AzRestMethod -Method GET -Path $url;
-        Log "response StatusCode: $($response.StatusCode)"
+        Log "response StatusCode: $($response.StatusCode)", "Verbose"
         $content = ($response.Content | ConvertFrom-Json).value;
         [int]$count = 0;
         $content | ForEach-Object {
@@ -375,7 +399,7 @@ class BulkFailover{
     [int]AddServers([string]$subscriptionId, [string]$resourceGroupName, [string]$logicalServerName) {
         $serversAdded = $this.servers.AddServers($subscriptionId, $resourceGroupName, $logicalServerName);
         if ($serversAdded -gt 0) { 
-            Log "Found $serversAdded servers in resource group $resourceGroupName in subscription $subscriptionId.";
+            Log "Found $serversAdded servers in resource group $resourceGroupName in subscription $subscriptionId.", "Info";
         }
         return $serversAdded;
     }
@@ -384,7 +408,7 @@ class BulkFailover{
     # returns the number of resources added
     [int]AddServerResources($server) {
         $count = $this.resources.AddResources($server);
-        Log "Found $count resources in server $($server.Name) in resource group $($server.ResourceGroupName) in subscription $($server.SubscriptionId)";
+        Log "Found $count resources in server $($server.Name) in resource group $($server.ResourceGroupName) in subscription $($server.SubscriptionId)", "Info";
         return $count;
     }
 
@@ -423,7 +447,7 @@ class BulkFailover{
         $resourceGroups = Get-AzResourceGroup;
         $resourceGroups | ForEach-Object {
             $resourceGroupName = $_.ResourceGroupName;
-            Log "Adding resources for resource group $resourceGroupName in subscription $subscriptionId.";
+            Log "Adding resources for resource group $resourceGroupName in subscription $subscriptionId.", "Info";
             $count += $this.AddServers($subscriptionId, $resourceGroupName, $logicalServerName);
         }
         return $count;
@@ -432,7 +456,7 @@ class BulkFailover{
     # Main body that does the bulk failover
     [void]Run($subscriptionId, $resourceGroupName, $logicalServerName){
         $start = Get-Date;
-        Log "BulkFailover.Run($subscriptionId, $resourceGroupName, $logicalServerName)"
+        Log "BulkFailover.Run($subscriptionId, $resourceGroupName, $logicalServerName)", "Info"
         
         # Get the default subscription and add the resource groups for it
         if ([String]::IsNullOrEmpty($resourceGroupName)) {
@@ -441,7 +465,7 @@ class BulkFailover{
             $count = $this.AddServers($subscriptionId, $resourceGroupName, $logicalServerName);
         }
         
-        Log "Found $count total servers in subscription $subscriptionId";
+        Log "Found $count total servers in subscription $subscriptionId", "Info";
         $this.servers | Format-Table
 
         if ($this.servers.Count -eq 0) {
@@ -451,7 +475,7 @@ class BulkFailover{
         
         # add the resources for all the servers and log the start of the failover process and the time
         $count = $this.AddResources();
-        Log "Starting bulk failover of a total of $($this.resources.Count) resources in $($this.servers.Count) servers.";
+        Log "Starting bulk failover of a total of $($this.resources.Count) resources in $($this.servers.Count) servers.", "Info";
 
         # loop until all resources are failed or succeeded
         do {
@@ -459,13 +483,13 @@ class BulkFailover{
             $toFailoverCount = ($this.resources.CountInStatus([FailoverStatus]::Pending))
             if ($toFailoverCount -gt 0)
             {
-                Log "$toFailoverCount resources to be failed over...."
+                Log "$toFailoverCount resources to be failed over....", "Verbose"
                 $this.Failover();
             }
             $inProgressCount = ($this.resources.CountInStatus([FailoverStatus]::InProgress))
             if ($inProgressCount -gt 0)
             {
-                Log "$inProgressCount resources in progress.... "
+                Log "$inProgressCount resources in progress.... ", "Verbose"
                 Start-Sleep -Seconds $global:SleepTime;
             }
             $this.UpdateFailoverStatus();
@@ -473,11 +497,11 @@ class BulkFailover{
     
         # log the final FailoverStatus of the resources
         $end = Get-Date;
-        Log "Succesfully failedover $($this.Resources.CountInStatus([FailoverStatus]::Succeeded)) out of $($this.Resources.Count) resources. Process took: $($end - $start).";
+        Log "Succesfully failedover $($this.Resources.CountInStatus([FailoverStatus]::Succeeded)) out of $($this.Resources.Count) resources. Process took: $($end - $start).", "Minimal";
         if ($this.Resources.CountInStatus([FailoverStatus]::Failed) -gt 0) {
-            Log "Failed to failover $($this.Resources.CountInStatus([FailoverStatus]::Failed)) eligable resources. Retry or contact system administrator for support.";
+            Log "Failed to failover $($this.Resources.CountInStatus([FailoverStatus]::Failed)) eligable resources. Retry or contact system administrator for support.", "Minimal";
         }else{
-            Log "All eligable resources failed over successfully.";
+            Log "All eligable resources failed over successfully.", "Minimal";
         }
     }
 }
@@ -491,9 +515,9 @@ try
 {
     # Ensure we do not inherit the AzContext in the runbook
     Disable-AzContextAutosave -Scope Process | Out-Null
+    
     # Set the strict variable declarations and verbose logging preference to continue so we can see the output
     Set-StrictMode -Version Latest
-    $VerbosePreference = "Continue"
  
     # Make script stop on exception
     $ErrorActionPreference = "Stop"
@@ -514,23 +538,23 @@ try
         $LogicalServerName = $null;
     }
 
-    Log "Starting AzureSqlBulkFailover.ps1 on sub:'$($SubscriptionId)', resource group: '$($ResourceGroupName)', server: '$($LogicalServerName)'..."
+    Log "Starting AzureSqlBulkFailover.ps1 on sub:'$($SubscriptionId)', resource group: '$($ResourceGroupName)', server: '$($LogicalServerName)'...", "Minimal"
 
     # Connect to the sub using a system assigned managed identity
-    Log "Using subscription $subscriptionId"
+    Log "Using subscription $subscriptionId", "Minimal"
     $AzureContext = (Connect-AzAccount -Identity -Subscription $SubscriptionId).context
-    Log "Connected to subscription $($AzureContext.Subscription.Name)."
+    Log "Connected to subscription $($AzureContext.Subscription.Name).","Verbose"
 
     # Create the bulk failover object and run the failover process
-    Log "Creating BulkFailover..."
+    Log "Creating BulkFailover...", "Verbose"
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
-    Log "Initiating bulk failover for server: $LogicalServerName..."
+    Log "Initiating bulk failover for server: $LogicalServerName...", "Verbose"
     $bulkFailover.Run($SubscriptionId, $ResourceGroupName, $LogicalServerName);
-    Log "Failover process complete."
+    Log "Failover process complete.", "Minimal"
 }
 catch {
     # Complete all progress bars and write the error
-    Log -Message "Exception: $($_)"
+    Log "Exception: $($_)", "Minimal"
     throw
 }
 

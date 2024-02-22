@@ -24,12 +24,17 @@
     > ![Runbook Start Button](./Media/RunbookStart.png)
 5. The output will automatically refresh when the operation completes. Look for the message
 ```
-VERBOSE: 2023-11-13 19:14:03 => Successfully failedover 2 out of 2 resources. Process took: 00:01:34.4271907.
+2023-11-13 19:14:03 => Successfully failedover 2 out of 2 resources. Process took: 00:01:34.4271907.
 
-VERBOSE: 2023-11-13 19:14:03 => All eligible resources failed over successfully.
+2023-11-13 19:14:03 => All eligible resources failed over successfully.
 
-VERBOSE: 2023-11-13 19:14:03 => Failover process complete.
+2023-11-13 19:14:03 => Failover process complete.
 ```
 at the end of the output. This indicates that all databases were upgraded. Ensure that the number of databases failed over is not 0 and corresponds to the number of databases you expected to be failed over.
+
+----
+# Logging
+The runbook logs all activities to the Azure portal. You can view the logs by clicking the **Output** tab in the runbook resource. It should be notes that the level of logging is set to "Minimal" by default but you can change the logging level by modifying the global automation accounts global "LogLevel" variable as shown in the following image. Valid values for this variable are "Minimal", "Info" and "Verbose".
+
 
 
