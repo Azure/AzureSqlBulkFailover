@@ -63,15 +63,16 @@
         {
           "type": "Microsoft.Automation/automationAccounts/variables",
           "apiVersion": "2022-08-08",
-          "name": "[concat(parameters('automationAccountName'), '/LogLevel')]",
+          "name": "[concat(parameters('AutomationAccountName'), '/LogLevel')]",
           "dependsOn": [
-              "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationAccountName'))]"
+              "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
           ],
           "properties": {
               "isEncrypted": false,
               "value": "Minimal"
           }
-      }]
+        }
+      ]
     }
   ],
     
