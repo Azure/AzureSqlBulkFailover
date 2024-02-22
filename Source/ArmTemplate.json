@@ -17,7 +17,6 @@
       }
     }
   },
-
   "resources": [    
     {
       "name": "[parameters('AutomationAccountName')]",
@@ -50,29 +49,29 @@
           "properties": {
             "description": "Downloads scripts from GitHub (AzureSqlBulkFailover) from the selected branch and executes them causing bulk failover of all databases in the selected serveer.",
             "runbookType": "PowerShell7",
-            "logProgress": "true",
-            "logVerbose": "true",
+            "logProgress": "false",
+            "logVerbose": "false",
             "logActivityTrace": 0,
             "publishContentLink": {
               "uri": "[concat('https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/',parameters('branchName'),'/Source/RunbookEntrypoint.ps1')]"
             }
           }
-        },
-        {
-          "type": "Microsoft.Automation/automationAccounts/variables",
-          "apiVersion": "2015-10-31",
-          "name": "[concat(parameters('AutomationAccountName'), '/LogLevel')]",
-          "dependsOn": [
-              "[resourceId('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
-          ],
-          "properties": {
-              "isEncrypted": false,
-              "value": "Minimal"
-          }
         }
       ]
+    },
+    {
+      "type": "Microsoft.Automation/automationAccounts/variables",
+      "apiVersion": "2023-11-01",
+      "name": "[concat(parameters('AutomationAccountName'), '/LogLevel')]",
+      "dependsOn": [
+          "[resourceId('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+      ],
+      "properties": {
+          "isEncrypted": false,
+          "value": "\"Minimal\"",
+          "description": "Defines the level of logging detail for bulk failover runbook execution"
+      }
     }
   ],
-    
 "outputs": {}
 }
