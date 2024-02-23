@@ -34,6 +34,6 @@ at the end of the output. This indicates that all databases were upgraded. Ensur
 
 ----
 # Logging
-The runbook logs all activities to the Azure portal. You can view the logs by clicking the **Output** tab in the runbook resource. It should be notes that the level of logging is set to "Minimal" by default but you can change the logging level by modifying the global automation accounts global "LogLevel" variable as shown in the following image. Valid values for this variable are "Minimal", "Info" and "Verbose".
+The runbook logs all activities to the Azure portal. You can view the logs by clicking the **Output** tab in the runbook resource. It should be noted that the level of logging is set to "Minimal" by default but that it can be changed by modifying the global automation accounts "LogLevel" variable as shown in the following image. Valid values for this variable are "Minimal", "Info" and "Verbose".
 > ![Automation Account Variables](./Media/AutomationAccountVariables.png)
 > ![Log Level Variable](./Media/LogLevelVariable.png)
