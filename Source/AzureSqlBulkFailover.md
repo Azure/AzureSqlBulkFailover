@@ -28,6 +28,8 @@ This script is intended to be run as an Azure Automation Runbook or locally.
     - `Skipped`: The failover process was skipped (the database did not need to be failed over or was not eligible).
     - `Failed`: The failover process failed.
 - `Log`: A helper function to log messages to the console including the date, name of the calling class and method.
+The Log function receives a log level, where "Minimal" means log the message always, "Info" means log the message if the log level is set to "Info" or "Verbose", and "Verbose" means log the message if the log level is set to "Verbose".
+    - `LogLevel` global variable can be set in the automation account and is deployed by the arm template with a default value of "Minimal" (minimal logging) but can be changed to "Verbose" or "Info" if aditional logging requirements are needed. 
 
 ## Main script flow
 The script performs the following steps:
@@ -136,7 +138,6 @@ This class represents a list of resources and associated helper methods.
 - `ResourceList()`: Creates a new instance of the `ResourceList` class.
 
 ### Static Methods
-
 - `ResourceListUrl([Server]$server)`: Helper to get the URL (path) to get the list of resources from the server.
 - `IsElasticPool([PSObject]$resource)`: Determines if the resource is in an elastic pool.
 - `CreateResource([Server]$server, [PSObject]$resource)`: Creates the right kind of resource, depending on whether or not it is in an elastic pool.

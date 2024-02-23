@@ -39,26 +39,23 @@ enum FailoverStatus {
 function LogLevelValue($logLevel) {
     switch ($logLevel) {
         "Allways" { return 0; } # When passed to Log ensures the message is logged
-        "Minimal" { return 0; } # When defined as log level ensures only allways messages are logged
-        "Info" { return 1; } # When defined as log level ensures only info and allways messages are logged
-        "Verbose" { return 2; } # When defined as log level ensures all messages are logged
-        default { return 1; } # When LogLevel is not defined, default to Info
+        "Minimal" { return 1; } # When defined as log level ensures only allways messages are logged
+        "Info" { return 2; } # When defined as log level ensures only info and allways messages are logged
+        "Verbose" { return 3; } # When defined as log level ensures all messages are logged
+        default { return 2; } # When LogLevel is not defined, default to Info
     }
 }
 
 # helper function to Log -message messages to the console including the date, name of the calling class and method
 # LogLevel values can be 'Minimal', 'Info', 'Verbose'
-function Log {
-    # add the message and log level parameters
-    param (
-        # Message to Log
-        [string]$message,
-        # Level of the Log message
-        [string]$logLevel 
-    )
-    if (LogLevelValue($logLevel) -le LogLevelValue($global:LogLevel)) {
-        $outputMessage = "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message"
-        Write-Verbose $outputMessage
+function Log([string]$message, [string]$logLevel)
+{
+    Write-Output "Msg: $message";
+    Write-Output "Level: $logLevel";
+    Write-Output "LogLevel: $($global:LogLevel)";
+    if ([int](LogLevelValue($logLevel)) -le [int](LogLevelValue($global:LogLevel))) {
+        $outputMessage = "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message";
+        Write-Output $outputMessage;
     }
 }
 #endregion
