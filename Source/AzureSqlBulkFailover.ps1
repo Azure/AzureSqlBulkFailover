@@ -49,8 +49,13 @@ function LogLevelValue($logLevel) {
 # helper function to Log -message messages to the console including the date, name of the calling class and method
 # LogLevel values can be 'Minimal', 'Info', 'Verbose'
 function Log {
-    [string]$message # Message to Log
-    [string]$logLevel # Level of the Log message
+    # add the message and log level parameters
+    param (
+        # Message to Log
+        [string]$message,
+        # Level of the Log message
+        [string]$logLevel 
+    )
     if (LogLevelValue($logLevel) -le LogLevelValue($global:LogLevel)) {
         $outputMessage = "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message"
         Write-Output $outputMessage
