@@ -58,7 +58,7 @@ function Log {
     )
     if (LogLevelValue($logLevel) -le LogLevelValue($global:LogLevel)) {
         $outputMessage = "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message"
-        Write-Output $outputMessage
+        Write-Verbose $outputMessage
     }
 }
 #endregion
@@ -549,14 +549,13 @@ try
     Log -message "Starting AzureSqlBulkFailover.ps1 on sub:'$($SubscriptionId)', resource group: '$($ResourceGroupName)', server: '$($LogicalServerName)'..." -logLevel "Allways"
 
     # Connect to the sub using a system assigned managed identity
-    Log -message "Using subscription $subscriptionId" -logLevel "Allways"
+    Log -message "Using subscription $subscriptionId" -logLevel "Verbose"
     $AzureContext = (Connect-AzAccount -Identity -Subscription $SubscriptionId).context
     Log -message "Connected to subscription $($AzureContext.Subscription.Name)." -logLevel "Verbose"
 
     # Create the bulk failover object and run the failover process
-    Log -message "Creating BulkFailover..." -logLevel "Verbose"
+    Log -message "Initiating BulkFailover..." -logLevel "Allways"
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
-    Log -message "Initiating bulk failover for server: $LogicalServerName..." -logLevel "Verbose"
     $bulkFailover.Run($SubscriptionId, $ResourceGroupName, $LogicalServerName);
     Log -message "Failover process complete." -logLevel "Allways"
 }
