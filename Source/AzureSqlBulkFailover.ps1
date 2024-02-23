@@ -229,7 +229,7 @@ class DatabaseResource {
                     }
                 }
                 elseif ($requestContent.Status -eq "Succeeded") {
-                    Log -message "$($this.ResourceId) => Successfully failed over." -logLevel "Always";
+                    Log -message "$($this.ResourceId) => Successfully failed over." -logLevel "Allways";
                     $this.FailoverStatus = [FailoverStatus]::Succeeded;
                 }
             }
