@@ -520,7 +520,8 @@ try
     
     # Set the strict variable declarations and verbose logging preference to continue so we can see the output
     Set-StrictMode -Version Latest
- 
+    $VerbosePreference = "Continue"
+    
     # Make script stop on exception
     $ErrorActionPreference = "Stop"
     
