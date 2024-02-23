@@ -50,11 +50,8 @@ function LogLevelValue($logLevel) {
 # LogLevel values can be 'Minimal', 'Info', 'Verbose'
 function Log([string]$message, [string]$logLevel)
 {
-    Write-Output "Msg: $message";
-    Write-Output "Level: $logLevel";
-    Write-Output "LogLevel: $($global:LogLevel)";
     if ([int](LogLevelValue($logLevel)) -le [int](LogLevelValue($global:LogLevel))) {
-        $outputMessage = "$([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message";
+        $outputMessage = "$($logLevel): $([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message";
         Write-Output $outputMessage;
     }
 }
