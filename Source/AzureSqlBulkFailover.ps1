@@ -52,7 +52,7 @@ function Log([string]$message, [string]$logLevel)
 {
     if ([int](LogLevelValue($logLevel)) -le [int](LogLevelValue($global:LogLevel))) {
         $outputMessage = "$($logLevel): $([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message";
-        Write-Output $outputMessage;
+        Write-Verbose $outputMessage;
     }
 }
 #endregion
@@ -521,7 +521,7 @@ try
     # Set the strict variable declarations and verbose logging preference to continue so we can see the output
     Set-StrictMode -Version Latest
     $VerbosePreference = "Continue"
-    
+
     # Make script stop on exception
     $ErrorActionPreference = "Stop"
     
