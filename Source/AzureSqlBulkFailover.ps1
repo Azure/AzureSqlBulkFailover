@@ -38,9 +38,9 @@ enum FailoverStatus {
 # Get the numeric value of the LogLevel to facilitate comparison
 function LogLevelValue($logLevel) {
     switch ($logLevel) {
-        "Allways" { return 0; } # When passed to Log ensures the message is logged
-        "Minimal" { return 1; } # When defined as log level ensures only allways messages are logged
-        "Info" { return 2; } # When defined as log level ensures only info and allways messages are logged
+        "Always" { return 0; } # When passed to Log ensures the message is logged
+        "Minimal" { return 1; } # When defined as log level ensures only Always messages are logged
+        "Info" { return 2; } # When defined as log level ensures only info and Always messages are logged
         "Verbose" { return 3; } # When defined as log level ensures all messages are logged
         default { return 2; } # When LogLevel is not defined, default to Info
     }
@@ -188,7 +188,7 @@ class DatabaseResource {
             } else {# If we got another kind of response, we failed to failover the resource
                 $this.FailoverStatus = [FailoverStatus]::Failed;
                 $this.Message = $response.Content;
-                Log -message "$($this.ResourceId). Error: $($response.StatusCode) - $($this.Message)." -logLevel "Allways";
+                Log -message "$($this.ResourceId). Error: $($response.StatusCode) - $($this.Message)." -logLevel "Always";
             }
         }
         else {
@@ -217,19 +217,19 @@ class DatabaseResource {
                         $this.Message = $requestContent.error.message;
                     }
                     else{
-                        Log -message "$($this.ResourceId) => Error: $($requestContent.error.message) while trying to failover. Will not retry." -logLevel "Allways";
+                        Log -message "$($this.ResourceId) => Error: $($requestContent.error.message) while trying to failover. Will not retry." -logLevel "Always";
                         $this.FailoverStatus = [FailoverStatus]::Failed;
                         $this.Message = $requestContent.error.message;
                     }
                 }
                 elseif ($requestContent.Status -eq "Succeeded") {
-                    Log -message "$($this.ResourceId) => Successfully failed over." -logLevel "Allways";
+                    Log -message "$($this.ResourceId) => Successfully failed over." -logLevel "Always";
                     $this.FailoverStatus = [FailoverStatus]::Succeeded;
                 }
             }
             else{
                 # if the request did not complete then report the error and remove the request from the list
-                Log -message "$($this.ResourceId) => Error: $($response.StatusCode) while trying to get FailoverStatus." -logLevel "Allways";
+                Log -message "$($this.ResourceId) => Error: $($response.StatusCode) while trying to get FailoverStatus." -logLevel "Always";
                 $this.FailoverStatus = [FailoverStatus]::Failed;
                 $this.Message = $response.Content;
             }
@@ -499,11 +499,11 @@ class BulkFailover{
     
         # Log -message the final FailoverStatus of the resources
         $end = Get-Date;
-        Log -message "Succesfully failedover $($this.Resources.CountInStatus([FailoverStatus]::Succeeded)) out of $($this.Resources.Count) resources. Process took: $($end - $start)." -logLevel "Allways";
+        Log -message "Succesfully failedover $($this.Resources.CountInStatus([FailoverStatus]::Succeeded)) out of $($this.Resources.Count) resources. Process took: $($end - $start)." -logLevel "Always";
         if ($this.Resources.CountInStatus([FailoverStatus]::Failed) -gt 0) {
-            Log -message "Failed to failover $($this.Resources.CountInStatus([FailoverStatus]::Failed)) eligable resources. Retry or contact system administrator for support." -logLevel "Allways";
+            Log -message "Failed to failover $($this.Resources.CountInStatus([FailoverStatus]::Failed)) eligable resources. Retry or contact system administrator for support." -logLevel "Always";
         }else{
-            Log -message "All eligable resources failed over successfully." -logLevel "Allways";
+            Log -message "All eligable resources failed over successfully." -logLevel "Always";
         }
     }
 }
@@ -541,7 +541,7 @@ try
         $LogicalServerName = $null;
     }
 
-    Log -message "Starting AzureSqlBulkFailover.ps1 on sub:'$($SubscriptionId)', resource group: '$($ResourceGroupName)', server: '$($LogicalServerName)'..." -logLevel "Allways"
+    Log -message "Starting AzureSqlBulkFailover.ps1 on sub:'$($SubscriptionId)', resource group: '$($ResourceGroupName)', server: '$($LogicalServerName)'..." -logLevel "Always"
 
     # Connect to the sub using a system assigned managed identity
     Log -message "Using subscription $subscriptionId" -logLevel "Verbose"
@@ -549,14 +549,14 @@ try
     Log -message "Connected to subscription $($AzureContext.Subscription.Name)." -logLevel "Verbose"
 
     # Create the bulk failover object and run the failover process
-    Log -message "Initiating BulkFailover..." -logLevel "Allways"
+    Log -message "Initiating BulkFailover..." -logLevel "Always"
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
     $bulkFailover.Run($SubscriptionId, $ResourceGroupName, $LogicalServerName);
-    Log -message "Failover process complete." -logLevel "Allways"
+    Log -message "Failover process complete." -logLevel "Always"
 }
 catch {
     # Complete all progress bars and write the error
-    Log -message "Exception: $($_)" -logLevel "Allways"
+    Log -message "Exception: $($_)" -logLevel "Always"
     throw
 }
 
