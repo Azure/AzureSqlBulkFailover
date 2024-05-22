@@ -31,7 +31,7 @@ param(
     # LogicalServerName: This is the name of the logical server where the resources to be failed over are located.
     # Use * to target all logical servers in the subscription.
     [Parameter(Mandatory=$true)]
-    [string]$LogicalServerName = "Use * for all logical servers",
+    [string]$LogicalServerName = "Use * for all logical servers or comma-delimited list of server names with no quotes",
     # branch_name: This is the name of the branch to use to get the scripts that are eecuted by the runbook.
     # Use main to target the main branch, leaving this empty will default to main.
     [Parameter(Mandatory=$false)]
