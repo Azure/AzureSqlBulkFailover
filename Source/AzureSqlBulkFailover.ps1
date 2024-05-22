@@ -372,9 +372,14 @@ class ServerList : System.Collections.Generic.List[object]{
         $response = Invoke-AzRestMethod -Method GET -Path $url;
         Log -message "response StatusCode: $($response.StatusCode)" -logLevel "Verbose"
         $content = ($response.Content | ConvertFrom-Json).value;
+        $serverArray = @();
+        # if we have more than one server, split the logicalServerName into an array
+        if (-not [String]::IsNullOrEmpty($logicalServerName)){
+            $serverArray = $logicalServerName.Split(",") | ForEach-Object { $_.Trim() };
+        }
         [int]$count = 0;
         $content | ForEach-Object {
-            if ([String]::IsNullOrEmpty($logicalServerName) -or ($_.name -eq $logicalServerName)) {
+            if ([String]::IsNullOrEmpty($logicalServerName) -or ($serverArray -contains $_.name)) {
                 $this.Add([Server]::new($_));
             }
             $count++;
