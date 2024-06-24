@@ -1,10 +1,10 @@
-# Last Updated: 2023-08-03
+# Last Updated: 2024-06-24
 # Purpose: This script is used to failover all databases and elastic pools in a subscription to a secondary, already upgraded replica
 # Usage: This script is intended to be run as an Azure Automation Runbook or locally.
 # Notes: This script is intended to be used to facilitate CMW customers to upgrade their databases on demand when upgrades are ready (one touch 
 # Warning: This will failover ALL resources that the caller has access to in all subscriptions in the tenant, filtering by SubscriptionId, ResourceGroupName and LogicalServerName.
 # Copyright 2023 Microsoft Corporation. All rights reserved. MIT License
-#Read input parameters subscriptionId and ResourceGroup
+# Read input parameters subscriptionId and ResourceGroup
 param(
     [Parameter(Mandatory=$true)]
     [psobject]$ScriptProperties
@@ -263,62 +263,53 @@ class ElasticPoolResource : DatabaseResource{
 # Class that represents a list of resources and associated helper methods
 # Note that the base class for all resources is DatabaseResource
 class ResourceList : System.Collections.Generic.List[object]{
-    # Helper to get the url (path) to get the list of resources from the server
-    static [string]ResourceListUrl([Server]$server){
+    # Helper to get the url (path) to the list of database resources in the server
+    static [string]DatabaseResourceListUrl([Server]$server){
         return "/subscriptions/$($server.SubscriptionId)/resourcegroups/$($server.ResourceGroupName)/providers/Microsoft.Sql/servers/$($server.Name)/databases?api-version=2021-02-01-preview";
     }
+
+    # Helper to get the url (path) to the list of pool resources in the server
+    static [string]ElasticPoolResourceListUrl([Server]$server){
+        return "/subscriptions/$($server.SubscriptionId)/resourcegroups/$($server.ResourceGroupName)/providers/Microsoft.Sql/servers/$($server.Name)/elasticpools?api-version=2021-02-01-preview";
+    }
     
-    # Determines if the resource is an elastic pool
+    # Determines if the database resource is in an elastic pool
     static [bool]IsElasticPool([PSObject]$resource) {
-        # use reflexion to check if the property exists
+        # if the property elasticPoolId property exists and isnt empty then its a database in a pool
         $hasElasticPoolId = [bool]($resource.properties | Get-Member -Name "elasticPoolId" -MemberType "NoteProperty")
         return $hasElasticPoolId -and ($null -ne $resource.properties.elasticPoolId);
     }
 
-    # Creates the right kind of resource, depending on whether or not it is an elastic pool
-    static [DatabaseResource]CreateResource([Server]$server, [PSObject]$resource) {
-        if ([ResourceList]::IsElasticPool($resource)) {
-            [ElasticPoolResource]$object = [ElasticPoolResource]::new($server, $resource);
-        }
-        else {
-            [DatabaseResource]$object = [DatabaseResource]::new($server, $resource);
-        }
-        return $object;
-    }
-
-    # returns the FailoverKey for the resource (makes all databases in an elastic pool have the same FailoverKey,
-    # while allowing a database and elastic pool with the same name to have different FailoverKeys)
-    static [string]FailoverKey([PSObject]$resource) {
-        if ([ResourceList]::IsElasticPool($resource))
+    # Adds all the database or pool resource to this list
+    [int]AddDatabaseOrPoolResources([Server]$server, [bool] $pools) {
+        # get all the databases or pools
+        if ($pools)
         {
-            return "ElasticPool_$($resource.properties.elasticPoolId.Split("/")[-1])";
-        }else{
-            return "Database_$($resource.name)";
+            $url = [ResourceList]::ElasticPoolResourceListUrl($server)
+        } else {
+            $url = [ResourceList]::DatabaseResourceListUrl($server)
         }
-    }
 
-    # Adds a list of Resource objects (databases and elastic pools) in a server to this list
-    # returns the number of resources added
-    [int]AddResources([Server]$server) {
-        # get all the databases (including those in pools)
-        # create a hashtable to store the unique resources in
-        # the resources failoverkey ensures we only add resources we can failover to the list
-        $url = [ResourceList]::ResourceListUrl($server)
         # loop while $url is not null
-        $resourcesToAdd = New-Object -TypeName System.Collections.Hashtable
+        [int]$count = 0
         do {
+            # query the URL and get the list of resources, filtering by pools or databases
             Log -message "AddResources: Invoke-AzRestMethod -Method GET -Path $url" -logLevel "Verbose"
             $response = Invoke-AzRestMethod -Method GET -Path $url;
             Log -message "response StatusCode: $($response.StatusCode)" -logLevel "Verbose"
             $content = ($response.Content | ConvertFrom-Json).value;
             $content | ForEach-Object {
-                # create a resource object and add it to the hashtable using the failoverkey as the key
-                # ensure we only create and add one resource foreeach key value
-                $key = [ResourceList]::FailoverKey($_);
-                if (-not $resourcesToAdd.ContainsKey($key)) {
-                    $resource = [ResourceList]::CreateResource($server, $_);
-                    $resourcesToAdd[$key] = $resource;
+                # Check if the resource is in a pool and ignore if so, if not add it to the list
+                if ($pools -and [ResourceList]::IsElasticPool($_)) {
+                    $resource = [ElasticPoolResource]::new($server, $_);
                     $this.Add($resource);
+                    $count = $count + 1;
+                    Log -message "Found ElasticPool: $($resource.Name)" -logLevel "Verbose"
+                } elseif (-not ($pools -or [ResourceList]::IsElasticPool($_))) {
+                    $resource = [DatabaseResource]::new($server, $_);
+                    $this.Add($resource);
+                    $count = $count + 1;
+                    Log -message "Found Database: $($resource.Name)" -logLevel "Verbose"
                 }
             } 
             # get the next page of results if there is one
@@ -332,7 +323,15 @@ class ResourceList : System.Collections.Generic.List[object]{
                 $url = $url -replace [regex]::Escape($($global:ARMBaseUri)), "";
             }
         } while ($null -ne $url);
-        return $resourcesToAdd.Count;
+        # return the number of resources added
+        return $count;
+    }
+
+    # Adds a list of Resource objects (databases and elastic pools) in a server to this list
+    # returns the number of resources added
+    [int]AddResources([Server]$server) {
+        # Add the pools and databases to the list of servers
+        return this.AddDatabaseOrPoolResources($server, $true) + this.AddDatabaseOrPoolResources($server, $false)
     }
 
     # Helper to get the number of resources in the list that are in the specified FailoverStatus
