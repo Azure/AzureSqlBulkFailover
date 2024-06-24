@@ -331,7 +331,7 @@ class ResourceList : System.Collections.Generic.List[object]{
     # returns the number of resources added
     [int]AddResources([Server]$server) {
         # Add the pools and databases to the list of servers
-        return this.AddDatabaseOrPoolResources($server, $true) + this.AddDatabaseOrPoolResources($server, $false)
+        return $this.AddDatabaseOrPoolResources($server, $true) + $this.AddDatabaseOrPoolResources($server, $false)
     }
 
     # Helper to get the number of resources in the list that are in the specified FailoverStatus
