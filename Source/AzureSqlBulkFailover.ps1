@@ -299,12 +299,13 @@ class ResourceList : System.Collections.Generic.List[object]{
             Log -message "response StatusCode: $($response.StatusCode)" -logLevel "Verbose"
             $content = @(($response.Content | ConvertFrom-Json).value);
             $content | ForEach-Object {
-                # Check if the resource is in a pool and ignore if so, if not add it to the list
-                if ($pools -and [ResourceList]::IsElasticPool($_)) {
+                # if the pools flag is set then all the resources are pools, otherwise they are databases
+                if ($pools) {
                     $resource = [ElasticPoolResource]::new($server, $_);
                     $this.Add($resource);
                     $count = $count + 1;
                     Log -message "Found ElasticPool: $($resource.Name)" -logLevel "Verbose"
+                # Check if the resource is in a pool and ignore if so (some databases may be in pools), if not add it to the list
                 } elseif (-not ($pools -or [ResourceList]::IsElasticPool($_))) {
                     $resource = [DatabaseResource]::new($server, $_);
                     $this.Add($resource);
