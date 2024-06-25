@@ -115,7 +115,7 @@ class DatabaseResource {
     # Determines if the database resource is in an elastic pool
     static [bool]IsInElasticPool([PSObject]$resource) {
         # if the property elasticPoolId property exists and isnt empty then its a database in a pool
-        $elasticPoolIdMember = ($resource.properties | Get-Member -Name "elasticPoolId" -MemberType "NoteProperty" -ErrorAction SilentlyContinue);
+        $elasticPoolIdMember = ($resource.properties | Get-Member -Name "elasticPoolId" -MemberType "NoteProperty" -ErrorAction "SilentlyContinue");
         return ($null -ne $elasticPoolIdMember -and -not [String]::IsNullOrEmpty($resource.properties.elasticPoolId));
     }
 
