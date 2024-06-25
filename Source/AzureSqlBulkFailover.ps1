@@ -110,7 +110,7 @@ class DatabaseResource {
         $this.Name = $this.GetName($resource); 
         $this.ResourceId = $this.GetResourceId($resource);
         $this.ShouldFailover = $this.GetIsFailoverUpgrade($resource);
-        $this.IsPool = [DatabaseResource]::IsInElasticPool($server, $resource);
+        $this.IsPool = [DatabaseResource]::IsInElasticPool($resource);
     }
 
     # Determines if the database resource is in an elastic pool
