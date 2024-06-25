@@ -109,8 +109,8 @@ class DatabaseResource {
         $this.Message = "";
         $this.Name = $this.GetName($resource); 
         $this.ResourceId = $this.GetResourceId($resource);
-        $this.ShouldFailover = $this.GetIsFailoverUpgrade($resource);
         $this.IsPool = [DatabaseResource]::IsInElasticPool($resource);
+        $this.ShouldFailover = $this.IsPool -or $this.GetIsFailoverUpgrade($resource);
     }
 
     # Determines if the database resource is in an elastic pool
@@ -160,7 +160,7 @@ class DatabaseResource {
     # Helper to determine if the failover will actually invoke the UpgradeMeNow process.
     # This is determined by whether the CurrentSku tier of the databse is not HyperScale
     [bool]GetIsFailoverUpgrade([PSObject]$resource) {
-        return ($resource.Properties.CurrentSku.tier) -ne "Hyperscale";
+        return $this.IsPool -or ($resource.Properties.CurrentSku.tier) -ne "Hyperscale";
     }
 
     # Helper to determine if the resource should be failed over
