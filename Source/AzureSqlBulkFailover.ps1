@@ -112,11 +112,12 @@ class DatabaseResource {
         $this.ShouldFailover = $this.GetIsFailoverUpgrade($resource);
         $this.IsPool = IsInElasticPool($server, $resource);
     }
+
     # Determines if the database resource is in an elastic pool
     static [bool]IsInElasticPool([PSObject]$resource) {
-        # if the property elasticPoolId property exists and isnt empty then its a database in a pool
-        $elasticPoolIdMember = ($resource.properties | Get-Member -Name "elasticPoolId" -MemberType "NoteProperty" -ErrorAction "SilentlyContinue");
-        return ($null -ne $elasticPoolIdMember -and -not [String]::IsNullOrEmpty($resource.properties.elasticPoolId));
+        # use reflexion to check if the property exists
+        $hasElasticPoolId = [bool]($resource.properties | Get-Member -Name "elasticPoolId" -MemberType "NoteProperty")
+        return $hasElasticPoolId -and ($null -ne $resource.properties.elasticPoolId);
     }
 
     # return the URL to failover the resource (without the ARM base)
