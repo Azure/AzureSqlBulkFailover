@@ -98,6 +98,7 @@ class DatabaseResource {
     [string]$Name # Name of the resource
     [string]$ResourceId # The id (path) of the resource
     [bool]$ShouldFailover # Used to store if the resource will upgrade when failover is invoked (if this is false, resource will be skipped)
+    [bool]$IsPool # Used to store if the resource is an elastic pool
 
     # Constructor takes a Server object, and a resource object (database or elastic pool) as returned from the API call methods 
     # and creates a resource object with the required properties to facilitate processing and querying of state
@@ -109,6 +110,14 @@ class DatabaseResource {
         $this.Name = $this.GetName($resource); 
         $this.ResourceId = $this.GetResourceId($resource);
         $this.ShouldFailover = $this.GetIsFailoverUpgrade($resource);
+        $this.IsPool = IsInElasticPool($server, $resource);
+    }
+    # Determines if the database resource is in an elastic pool
+    static [bool]IsInElasticPool([PSObject]$resource) {
+        # if the property elasticPoolId property exists and isnt empty then its a database in a pool
+        $elasticPoolId = ($resource.properties | Get-Member -Name "elasticPoolId" -MemberType "NoteProperty" -ErrorAction SilentlyContinue)
+        Log -message "$($resource.Name) IsInElasticPool: $elasticPoolId" -logLevel "Verbose"
+        return ($null -ne $elasticPoolId);
     }
 
     # return the URL to failover the resource (without the ARM base)
@@ -117,14 +126,12 @@ class DatabaseResource {
     }
 
     # gets the resource ID (path) from the resource object
-    # this method is overridden in the ElasticPoolResource class to get the correct path for elastic pools
     [string]GetResourceId([PSObject]$resource)
     {
         return $resource.id;
     }
 
     # gets the name of the resource from the resource object
-    # this method is overridden in the ElasticPoolResource class to get the correct name for elastic pools
     [string]GetName([PSObject]$resource)
     {
         return $resource.name;
@@ -236,27 +243,6 @@ class DatabaseResource {
         }
     }   
 }
-
-# Class that represents an elastic pool resource, 
-# needs to override the GetResourceId and GetName methods to get the correct values
-class ElasticPoolResource : DatabaseResource{
-    # Constructor takes a Server object, and a resource object (database or elastic pool) as returned from the API call methods
-    ElasticPoolResource([Server]$server, [PSObject]$resource) : base($server, $resource) {}
-
-    # Gets the resource ID (path) from the elastic pool resource object
-    [string]GetResourceId([PSObject]$resource)
-    {
-        return "/subscriptions/$($this.SubscriptionId())/resourcegroups/$($this.ResourceGroupName())/providers/Microsoft.Sql/servers/$($this.ServerName())/elasticpools/$($this.Name)";
-    }
-
-    # We only have one pool with many databases, so we need to get the name for the resource from the elasticPool that the database is contained in
-    # this makes the FailoverKey the same for all resources in a pool
-    [string]GetName([PSObject]$resource)
-    {
-        return ($resource.properties.elasticPoolId).Split("/")[-1];
-    }
-}
-
 #endregion
 
 #region List classes
@@ -271,13 +257,6 @@ class ResourceList : System.Collections.Generic.List[object]{
     # Helper to get the url (path) to the list of pool resources in the server
     static [string]ElasticPoolResourceListUrl([Server]$server){
         return "/subscriptions/$($server.SubscriptionId)/resourcegroups/$($server.ResourceGroupName)/providers/Microsoft.Sql/servers/$($server.Name)/elasticpools?api-version=2021-02-01-preview";
-    }
-    
-    # Determines if the database resource is in an elastic pool
-    static [bool]IsElasticPool([PSObject]$resource) {
-        # if the property elasticPoolId property exists and isnt empty then its a database in a pool
-        $hasElasticPoolId = [bool]($resource.properties | Get-Member -Name "elasticPoolId" -MemberType "NoteProperty")
-        return $hasElasticPoolId -and ($null -ne $resource.properties.elasticPoolId);
     }
 
     # Adds all the database or pool resource to this list
@@ -299,14 +278,14 @@ class ResourceList : System.Collections.Generic.List[object]{
             Log -message "response StatusCode: $($response.StatusCode)" -logLevel "Verbose"
             $content = @(($response.Content | ConvertFrom-Json).value);
             $content | ForEach-Object {
-                # if the pools flag is set then all the resources are pools, otherwise they are databases
+                # if the pools flag is set then all the resources are all pools and we need to add them, otherwise they are databases
                 if ($pools) {
-                    $resource = [ElasticPoolResource]::new($server, $_);
+                    $resource = [DatabaseResource]::new($server, $_);
                     $this.Add($resource);
                     $count = $count + 1;
                     Log -message "Found ElasticPool: $($resource.Name)" -logLevel "Verbose"
                 # Check if the resource is in a pool and ignore if so (some databases may be in pools), if not add it to the list
-                } elseif (-not ($pools -or [ResourceList]::IsElasticPool($_))) {
+                } elseif (-not ($pools -or [DatabaseResource]::IsInElasticPool($_))) {
                     $resource = [DatabaseResource]::new($server, $_);
                     $this.Add($resource);
                     $count = $count + 1;
