@@ -102,14 +102,14 @@ class DatabaseResource {
 
     # Constructor takes a Server object, and a resource object (database or elastic pool) as returned from the API call methods 
     # and creates a resource object with the required properties to facilitate processing and querying of state
-    DatabaseResource([Server]$server, [PSObject]$resource) {
+    DatabaseResource([Server]$server, [PSObject]$resource, [bool]$isPool) {
         $this.Server = $server;
         $this.FailoverStatus = [FailoverStatus]::Pending;
         $this.FailoverStatusPath = "";
         $this.Message = "";
         $this.Name = $this.GetName($resource); 
         $this.ResourceId = $this.GetResourceId($resource);
-        $this.IsPool = [DatabaseResource]::IsInElasticPool($resource);
+        $this.IsPool = $isPool;
         $this.ShouldFailover = $this.IsPool -or $this.GetIsFailoverUpgrade($resource);
     }
 
@@ -167,7 +167,7 @@ class DatabaseResource {
     [bool]ShouldFailover([PSObject]$resource) {
         # note that if the DB is inactive and then become active during the script run
         # it will not be failed over which is fine because it will get activated on the correct upgrade domain so doesnt need to be failed over
-        return $this.GetIsFailoverUpgrade($resource) -and $this.GetIsActive($resource);
+        return $this.IsPool -or ($this.GetIsFailoverUpgrade($resource) -and $this.GetIsActive($resource));
     }
 
     # Helper to determine if the resource failover process is complete
@@ -280,13 +280,13 @@ class ResourceList : System.Collections.Generic.List[object]{
             $content | ForEach-Object {
                 # if the pools flag is set then all the resources are all pools and we need to add them, otherwise they are databases
                 if ($pools) {
-                    $resource = [DatabaseResource]::new($server, $_);
+                    $resource = [DatabaseResource]::new($server, $_, $true);
                     $this.Add($resource);
                     $count = $count + 1;
                     Log -message "Found ElasticPool: $($resource.Name)" -logLevel "Verbose"
                 # Check if the resource is in a pool and ignore if so (some databases may be in pools), if not add it to the list
                 } elseif (-not ($pools -or [DatabaseResource]::IsInElasticPool($_))) {
-                    $resource = [DatabaseResource]::new($server, $_);
+                    $resource = [DatabaseResource]::new($server, $_, $false);
                     $this.Add($resource);
                     $count = $count + 1;
                     Log -message "Found Database: $($resource.Name)" -logLevel "Verbose"
