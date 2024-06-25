@@ -297,7 +297,7 @@ class ResourceList : System.Collections.Generic.List[object]{
             Log -message "AddResources: Invoke-AzRestMethod -Method GET -Path $url" -logLevel "Verbose"
             $response = Invoke-AzRestMethod -Method GET -Path $url;
             Log -message "response StatusCode: $($response.StatusCode)" -logLevel "Verbose"
-            $content = ($response.Content | ConvertFrom-Json).value;
+            $content = @(($response.Content | ConvertFrom-Json).value);
             $content | ForEach-Object {
                 # Check if the resource is in a pool and ignore if so, if not add it to the list
                 if ($pools -and [ResourceList]::IsElasticPool($_)) {
