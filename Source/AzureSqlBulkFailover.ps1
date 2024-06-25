@@ -114,11 +114,9 @@ class DatabaseResource {
     }
     # Determines if the database resource is in an elastic pool
     static [bool]IsInElasticPool([PSObject]$resource) {
-        Write-Verbose $resource
         # if the property elasticPoolId property exists and isnt empty then its a database in a pool
-        $elasticPoolId = ($resource.properties | Get-Member -Name "elasticPoolId" -MemberType "NoteProperty" -ErrorAction SilentlyContinue)
-        Log -message "$($resource.Name) IsInElasticPool: $elasticPoolId" -logLevel "Verbose"
-        return ($null -ne $elasticPoolId);
+        $elasticPoolIdMember = ($resource.properties | Get-Member -Name "elasticPoolId" -MemberType "NoteProperty" -ErrorAction SilentlyContinue);
+        return ($null -ne $elasticPoolIdMember -and -not [String]::IsNullOrEmpty($resource.properties.elasticPoolId));
     }
 
     # return the URL to failover the resource (without the ARM base)
