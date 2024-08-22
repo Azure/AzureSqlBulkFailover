@@ -52,7 +52,7 @@ function Log([string]$message, [string]$logLevel)
 {
     if ([int](LogLevelValue($logLevel)) -le [int](LogLevelValue($global:LogLevel))) {
         $outputMessage = "$($logLevel): $([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message";
-        Write-Verbose $outputMessage;
+        Write-Output $outputMessage;
     }
 }
 #endregion
