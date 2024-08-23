@@ -140,7 +140,7 @@ class DatabaseResource {
         {
             return "$($this.ResourceId)/failover?api-version=2021-02-01-preview";
         }else{
-            return "$($this.Server)/failover?replicaType=Primary&api-version=2022-05-01-preview";
+            return "$($this.ResourceId)/failover?replicaType=Primary&api-version=2022-05-01-preview";
         }
     }
 
