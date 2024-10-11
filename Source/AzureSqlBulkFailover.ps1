@@ -597,11 +597,13 @@ try
     $bulkFailover.Run($SubscriptionId, $ResourceGroupName, $LogicalServerName);
     Log -message "Failover process complete." -logLevel "Always"
 
+    Write-Output $global:LogRecords;
+
 }
 catch {
     # Complete all progress bars and write the error
     Log -message "Exception: $($_)" -logLevel "Always"
-    # Write-Output $global:LogRecords;
+    Write-Output $global:LogRecords;
     throw
 }
 
