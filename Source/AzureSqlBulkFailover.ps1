@@ -113,7 +113,7 @@ class Server{
     [string]$ResourceGroupName # Resource group name for the server
     [string]$Name # Name of the server
     [bool]$isMI # Indicates whether server is a Managed Instance
-
+    [PSObject]$ResourceObject # The server response object
     # Constructor takes a server response object as returned from the API call methods 
     # and creates a server object with the required properties to facilitate processing and querying of state
     Server([PSObject]$server) {
@@ -121,6 +121,7 @@ class Server{
         $this.ResourceGroupName = $this.GetResourceGroupName($server);
         $this.Name = $this.GetName($server);
         $this.isMI = $this.IsServerMI($server);
+        $this.ResourceObject = $server;
     }
 
     # Helper to get the subscription ID from the server respose object
@@ -188,7 +189,6 @@ class DatabaseResource {
     # gets the resource ID (path) from the resource object
     [string]GetResourceId([PSObject]$resource)
     {  
-        Log -message "Resource: $($resource)" -logLevel "Verbose"
         return $resource.id;
     }
 
@@ -379,7 +379,7 @@ class ResourceList : System.Collections.Generic.List[object]{
     # Adds MI resource to this list
     [void]AddMIResource([Server]$server) {
         Log -message "Adding MI resources for server $($server.Name) in resource group $($server.ResourceGroupName) in subscription $($server.SubscriptionId)" -logLevel "Info";
-        $resource = [DatabaseResource]::new($server, $_, [ResourceType]::ManagedInstance);
+        $resource = [DatabaseResource]::new($server, $server.ResourceObject, [ResourceType]::ManagedInstance);
         $this.Add($resource)
     }
 
@@ -655,13 +655,11 @@ try
     $bulkFailover.Run($SubscriptionId, $ResourceGroupName, $LogicalServerName);
     Log -message "Failover process complete." -logLevel "Always"
 
-    Write-Output $global:LogRecords;
-
 }
 catch {
     # Complete all progress bars and write the error
     Log -message "Exception: $($_)" -logLevel "Always"
-    Write-Output $global:LogRecords;
+    # Write-Output $global:LogRecords;
     throw
 }
 
