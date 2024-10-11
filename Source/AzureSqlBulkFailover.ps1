@@ -340,6 +340,7 @@ class ResourceList : System.Collections.Generic.List[object]{
 
     # Adds MI resource to this list
     [void]AddMIResource([Server]$server) {
+        Log -message "Adding MI resources for server $($server.Name) in resource group $($server.ResourceGroupName) in subscription $($server.SubscriptionId)" -logLevel "Info";
         $resource = [DatabaseResource]::new($server, $_, [ResourceType]::ManagedInstance);
         $this.Add($resource)
     }
