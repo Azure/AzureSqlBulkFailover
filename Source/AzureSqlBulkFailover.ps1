@@ -400,7 +400,7 @@ class ServerList : System.Collections.Generic.List[object]{
         $content = $content + $contentMI;
 
         $serverArray = @();
-        Log-Message $content;
+        Log -message $content -logLevel "Verbose";
         # if we have more than one server, split the logicalServerName into an array
         if (-not [String]::IsNullOrEmpty($logicalServerName)){
             $serverArray = $logicalServerName.Split(",") | ForEach-Object { $_.Trim() };
