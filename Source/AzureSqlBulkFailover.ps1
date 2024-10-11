@@ -439,11 +439,7 @@ class ServerList : System.Collections.Generic.List[object]{
         $content = $content + $contentMI;
 
         $serverArray = @();
-<<<<<<< HEAD
         Log -message $content -logLevel "Verbose";
-=======
-        Log-Message $content;
->>>>>>> 3e4464a (log change)
         # if we have more than one server, split the logicalServerName into an array
         if (-not [String]::IsNullOrEmpty($logicalServerName)){
             $serverArray = $logicalServerName.Split(",") | ForEach-Object { $_.Trim() };
