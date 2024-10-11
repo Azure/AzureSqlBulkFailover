@@ -150,7 +150,8 @@ class DatabaseResource {
 
     # gets the resource ID (path) from the resource object
     [string]GetResourceId([PSObject]$resource)
-    {
+    {  
+        Log -message "Resource: $($resource)" -logLevel "Verbose"
         return $resource.id;
     }
 
