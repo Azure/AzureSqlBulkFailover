@@ -42,6 +42,9 @@ enum ResourceType {
     ManagedInstance # The Managed Instance.
 }
 
+# Create list to hold log records
+$global:LogRecords = @();
+
 # Get the numeric value of the LogLevel to facilitate comparison
 function LogLevelValue($logLevel) {
     switch ($logLevel) {
@@ -59,7 +62,8 @@ function Log([string]$message, [string]$logLevel)
 {
     if ([int](LogLevelValue($logLevel)) -le [int](LogLevelValue($global:LogLevel))) {
         $outputMessage = "$($logLevel): $([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message";
-        Write-Output $outputMessage;
+        $global:LogRecords += $outputMessage;
+        echo $outputMessage;
     }
 }
 #endregion
@@ -393,9 +397,10 @@ class ServerList : System.Collections.Generic.List[object]{
         $contentMI = ($response.Content | ConvertFrom-Json).value;
         
         # Combine the servers from both SQLDB and SQLMI
-        $content = $content + $contentMI;        
-        $serverArray = @();
+        $content = $content + $contentMI;
 
+        $serverArray = @();
+        Log-Message $content;
         # if we have more than one server, split the logicalServerName into an array
         if (-not [String]::IsNullOrEmpty($logicalServerName)){
             $serverArray = $logicalServerName.Split(",") | ForEach-Object { $_.Trim() };
@@ -589,10 +594,14 @@ try
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
     $bulkFailover.Run($SubscriptionId, $ResourceGroupName, $LogicalServerName);
     Log -message "Failover process complete." -logLevel "Always"
+
+    Write-Output $global:LogRecords;
+
 }
 catch {
     # Complete all progress bars and write the error
     Log -message "Exception: $($_)" -logLevel "Always"
+    Write-Output $global:LogRecords;
     throw
 }
 
