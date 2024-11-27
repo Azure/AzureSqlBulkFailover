@@ -76,7 +76,10 @@
                 "contentLink": {
                   "version": "4.0.0",
                   "uri": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/4.0.0"
-                }
+                },
+            "runtimes": [
+                "PowerShell72"
+              ]
             }
           },
           {
@@ -91,7 +94,10 @@
                 "contentLink": {
                   "version": "2.0.0",
                   "uri": "https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/2.0.0"
-                }
+                },
+            "runtimes": [
+                "PowerShell72"
+              ]
             }
           },
           {
