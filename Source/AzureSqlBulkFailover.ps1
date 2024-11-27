@@ -25,6 +25,9 @@ catch {
     # do nothing
 }
 
+# Create a list to store the log messages with their level to be displayed at end of script execution
+$global:LogList = [System.Collections.Generic.List[Tuple[string,int]]]::new()
+
 # CheckPlannedMaintenanceNotification is used to control whether the script checks for a planned maintenance notification before proceeding
 $global:CheckPlannedMaintenanceNotification = $true;
 try {
@@ -33,9 +36,6 @@ try {
 catch {
     # do nothing
 }
-
-# Create a list to store the log messages to be displayed at end of script execution
-$global:LogList = [System.Collections.Generic.List[string]]::new()
 
 #region Enumerations, globals and helper functions
 # enum containing resource object FailoverStatus values
@@ -58,14 +58,48 @@ function LogLevelValue($logLevel) {
     }
 }
 
-# helper function to Log -message messages to the console including the date, name of the calling class and method
+function GetPlannedNotificationId {
+    # query resource health for planned maintenance notifications
+    $notifications = Search-AzGraph -Query @"
+ServiceHealthResources
+| where type =~ 'Microsoft.ResourceHealth/events'
+| extend notificationTime = todatetime(tolong(properties.LastUpdateTime)),
+          eventType = properties.EventType,
+          status = properties.Status,
+          summary = properties.Summary,
+          trackingId = tostring(properties.TrackingId)
+| where eventType == 'PlannedMaintenance' 
+      and status == 'Active' 
+      and summary contains 'You may initiate upgrade of your databases at any time.'
+| summarize arg_max(notificationTime, *) by trackingId
+| project trackingId
+"@;
+
+    if ($notifications.Count -gt 0) {
+        return $notifications[0].trackingId;
+    }
+    else {
+        return $null;
+    }
+}
+
+# helper function to Log -message messages to the log message list
 # LogLevel values can be 'Minimal', 'Info', 'Verbose'
-function Log([string]$message, [string]$logLevel)
-{
-    if ([int](LogLevelValue($logLevel)) -le [int](LogLevelValue($global:LogLevel))) {
-        $outputMessage = "$($logLevel): $([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message";
-        Write-Output $outputMessage;
-        $global:LogList.Add($outputMessage);
+function Log([string]$message, [string]$logLevel) {
+    $logLevelValue =[int](LogLevelValue($logLevel));
+    $outputMessage = "$($logLevel): $([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message";
+    $global:LogList.Add([Tuple]::Create($outputMessage,$logLevelValue));
+}
+
+# Helper function to display the log messages at the end of the script execution
+function DisplayLogMessages([string]$logLevel) {
+    [int]$logLevelValue = [int](LogLevelValue($logLevel));
+    foreach ($tuple in $global:LogList) {
+        $message = $tuple.Item1
+        $level = $tuple.Item2
+        if ($level -le $logLevelValue) {
+            Write-Output $message
+        }
     }
 }
 #endregion
@@ -507,39 +541,7 @@ class BulkFailover{
 
 #endregion
 
-#region Script Body
-function GetPlannedNotificationId {
-    # query resource health for planned maintenance notifications
-    $notifications = Search-AzGraph -Query @"
-ServiceHealthResources
-| where type =~ 'Microsoft.ResourceHealth/events'
-| extend notificationTime = todatetime(tolong(properties.LastUpdateTime)),
-          eventType = properties.EventType,
-          status = properties.Status,
-          summary = properties.Summary,
-          trackingId = tostring(properties.TrackingId)
-| where eventType == 'PlannedMaintenance' 
-      and status == 'Active' 
-      and summary contains 'You may initiate upgrade of your databases at any time.'
-| summarize arg_max(notificationTime, *) by trackingId
-| project trackingId
-"@;
-
-    if ($notifications.Count -gt 0) {
-        return $notifications[0].trackingId;
-    }
-    else {
-        return $null;
-    }
-}
-
-# Helper function to display the log messages at the end of the script
-function DisplayLogMessages {
-    $global:LogList | ForEach-Object {
-        Write-Output $_;
-    }
-}
-
+# region Script Body
 # Main method that runs the script to failover all databases and elastic pools in a resource group
 try
 {
@@ -603,12 +605,12 @@ try
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
     $bulkFailover.Run($SubscriptionId, $ResourceGroupName, $LogicalServerName);
     Log -message "Failover process complete." -logLevel "Always"
-    DisplayLogMessages
+    DisplayLogMessages($global:LogLevel)
 }
 catch {
     # Complete all progress bars and write the error
     Log -message "Exception: $($_)" -logLevel "Always"
-    DisplayLogMessages
+    DisplayLogMessages($global:LogLevel)
     throw
 }
 
