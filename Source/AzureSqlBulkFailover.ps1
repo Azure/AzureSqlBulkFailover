@@ -1,7 +1,3 @@
-# Import the required modules
-Import-Module Az.Accounts -MinimumVersion 4.0.0
-Import-Module Az.ResourceGraph -MinimumVersion 2.0.0
-
 # Last Updated: 2024-11-27
 # Purpose: This script is used to failover all databases and elastic pools in a subscription to a secondary, already upgraded replica
 # Usage: This script is intended to be run as an Azure Automation Runbook or locally.

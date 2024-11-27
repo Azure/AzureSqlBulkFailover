@@ -65,8 +65,8 @@
             }
         },
         {
-            "type": "Microsoft.Automation/automationAccounts/modules",
-            "apiVersion": "2023-05-15-preview",
+            "type": "Microsoft.Automation/automationAccounts/powerShell72Modules",
+            "apiVersion": "2023-11-01",
             "name": "[concat(parameters('AutomationAccountName'), '/Az.Accounts')]",
             "location": "[resourceGroup().location]",
             "dependsOn": [
@@ -76,12 +76,7 @@
                 "contentLink": {
                   "version": "4.0.0",
                   "uri": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/4.0.0"
-                },
-                "runtime": {
-                  "language": "PowerShell",
-                  "version": "7.2"
-                },     
-                "description":  "Module for getting account related information"
+                }
             }
           },
           {
@@ -96,8 +91,8 @@
             "properties": {
                 "contentLink": {
                   "hostType": "PowerShellGallery",
-                  "version": "2.0.0",
-                  "uri": "https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/2.0.0"
+                  "version": "1.0.1",
+                  "uri": "https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/1.0.1"
                 },
                 "runtime": {
                   "language": "PowerShell",
@@ -105,6 +100,32 @@
                 },     
                 "description":  "Module for querying Azure Resource Graph"
             }
+          },
+          {
+            "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments/packages",
+            "apiVersion": "2023-05-15-preview",
+            "name": "[concat(parameters('AutomationAccountName'), '/PowerShell-7.2/Az.Accounts')]",
+            "location": "eastus",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts/runtimeEnvironments', parameters('AutomationAccountName'), 'PowerShell-7.2')]",
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
+            ],
+            "properties": {
+                "contentLink": {}
+            }
+          },
+          {
+              "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments/packages",
+              "apiVersion": "2023-05-15-preview",
+              "name": "[concat(parameters('AutomationAccountName'),'/PowerShell-7.2/Az.ResourceGraph')]",
+              "location": "eastus",
+              "dependsOn": [
+                  "[resourceId('Microsoft.Automation/automationAccounts/runtimeEnvironments', parameters('AutomationAccountName'), 'PowerShell-7.2')]",
+                  "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
+              ],
+              "properties": {
+                  "contentLink": {}
+              }
           },
           {
             "type": "Microsoft.Automation/automationAccounts/runbooks",
