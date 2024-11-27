@@ -1,6 +1,3 @@
-# We use azure resource graph to determine if planned maintenance notifications have been sent to the subscription
-Import-Module Az.ResourceGraph
-
 # Last Updated: 2024-06-24
 # Purpose: This script is used to failover all databases and elastic pools in a subscription to a secondary, already upgraded replica
 # Usage: This script is intended to be run as an Azure Automation Runbook or locally.
@@ -511,6 +508,7 @@ function GetPlannedNotificationId {
     param (
         [string]$SubscriptionId
     )
+
     # query resource health for planned maintenance notifications on the subscription
     $notifications = Search-AzGraph -Query @"
 ServiceHealthResources
