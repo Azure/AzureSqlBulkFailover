@@ -89,7 +89,7 @@
         "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments",
         "apiVersion": "2023-05-15-preview",
         "name": "[concat(parameters('AutomationAccountName'), '/AzureSqlBulkFailoverEnv')]",
-        "location": "eastus",
+        "location": "[resourceGroup().location]",
         "dependsOn": [
             "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
         ],
@@ -109,26 +109,32 @@
         "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments/packages",
         "apiVersion": "2023-05-15-preview",
         "name": "[concat(parameters('AutomationAccountName'), '/AzureSqlBulkFailoverEnv/Az.Accounts')]",
-        "location": "eastus",
+        "location": "[resourceGroup().location]",
         "dependsOn": [
             "[resourceId('Microsoft.Automation/automationAccounts/runtimeEnvironments', parameters('AutomationAccountName'), 'AzureSqlBulkFailoverEnv')]",
             "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
         ],
         "properties": {
-            "contentLink": {}
+            "contentLink": {
+              "version": "4.0.0",
+              "uri": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/4.0.0"
+            }
         }
     },
     {
         "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments/packages",
         "apiVersion": "2023-05-15-preview",
         "name": "[concat(parameters('AutomationAccountName'), '/AzureSqlBulkFailoverEnv/Az.ResourceGraph')]",
-        "location": "eastus",
+        "location": "[resourceGroup().location]",
         "dependsOn": [
             "[resourceId('Microsoft.Automation/automationAccounts/runtimeEnvironments', parameters('AutomationAccountName'), 'AzureSqlBulkFailoverEnv')]",
             "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
         ],
         "properties": {
-            "contentLink": {}
+            "contentLink": {
+              "version": "2.0.0",
+              "uri": "https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/2.0.0"
+            }
         }
     }
   ],
