@@ -34,6 +34,9 @@ catch {
     # do nothing
 }
 
+# Create a list to store the log messages to be displayed at end of script execution
+$global:LogList = [System.Collections.Generic.List[string]]::new()
+
 #region Enumerations, globals and helper functions
 # enum containing resource object FailoverStatus values
 enum FailoverStatus {
@@ -62,6 +65,7 @@ function Log([string]$message, [string]$logLevel)
     if ([int](LogLevelValue($logLevel)) -le [int](LogLevelValue($global:LogLevel))) {
         $outputMessage = "$($logLevel): $([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message";
         Write-Output $outputMessage;
+        $global:LogList.Add($outputMessage);
     }
 }
 #endregion
@@ -529,6 +533,13 @@ ServiceHealthResources
     }
 }
 
+# Helper function to display the log messages at the end of the script
+function DisplayLogMessages {
+    $global:LogList | ForEach-Object {
+        Write-Output $_;
+    }
+}
+
 # Main method that runs the script to failover all databases and elastic pools in a resource group
 try
 {
@@ -592,10 +603,12 @@ try
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
     $bulkFailover.Run($SubscriptionId, $ResourceGroupName, $LogicalServerName);
     Log -message "Failover process complete." -logLevel "Always"
+    DisplayLogMessages
 }
 catch {
     # Complete all progress bars and write the error
     Log -message "Exception: $($_)" -logLevel "Always"
+    DisplayLogMessages
     throw
 }
 

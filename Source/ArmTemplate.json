@@ -84,6 +84,52 @@
           "value": "true",
           "description": "Determines whether or not to check for planned maintenance notifications before executing the bulk failover runbook"
       }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments",
+        "apiVersion": "2023-05-15-preview",
+        "name": "[concat(parameters('AutomationAccountName'), '/AzureSqlBulkFailoverEnv')]",
+        "location": "eastus",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
+        ],
+        "properties": {
+            "runtime": {
+                "language": "PowerShell",
+                "version": "7.2"
+            },
+            "defaultPackages": {
+                "az": "11.2.0",
+                "azure cli": "2.56.0"
+            },
+            "description": "Environment For Running AzureSqlBulkFailover runbook"
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments/packages",
+        "apiVersion": "2023-05-15-preview",
+        "name": "[concat(parameters('AutomationAccountName'), '/AzureSqlBulkFailoverEnv/Az.Accounts')]",
+        "location": "eastus",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts/runtimeEnvironments', parameters('AutomationAccountName'), 'AzureSqlBulkFailoverEnv')]",
+            "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
+    },
+    {
+        "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments/packages",
+        "apiVersion": "2023-05-15-preview",
+        "name": "[concat(parameters('AutomationAccountName'), '/AzureSqlBulkFailoverEnv/Az.ResourceGraph')]",
+        "location": "eastus",
+        "dependsOn": [
+            "[resourceId('Microsoft.Automation/automationAccounts/runtimeEnvironments', parameters('AutomationAccountName'), 'AzureSqlBulkFailoverEnv')]",
+            "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
+        ],
+        "properties": {
+            "contentLink": {}
+        }
     }
   ],
 "outputs": {}
