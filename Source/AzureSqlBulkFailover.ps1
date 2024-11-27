@@ -1,4 +1,8 @@
-# Last Updated: 2024-06-24
+# Import the required modules
+Import-Module Az.ResourceGraph
+Import-Module Az.Identity
+
+# Last Updated: 2024-11-27
 # Purpose: This script is used to failover all databases and elastic pools in a subscription to a secondary, already upgraded replica
 # Usage: This script is intended to be run as an Azure Automation Runbook or locally.
 # Notes: This script is intended to be used to facilitate CMW customers to upgrade their databases on demand when upgrades are ready (one touch 
