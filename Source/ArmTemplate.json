@@ -71,6 +71,19 @@
           "value": "\"Minimal\"",
           "description": "Defines the level of logging detail for bulk failover runbook execution"
       }
+    },
+    {
+      "type": "Microsoft.Automation/automationAccounts/variables",
+      "apiVersion": "2023-11-01",
+      "name": "[concat(parameters('AutomationAccountName'), '/CheckPlannedMaintenanceNotification')]",
+      "dependsOn": [
+          "[resourceId('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+      ],
+      "properties": {
+          "isEncrypted": false,
+          "value": "true",
+          "description": "Determines whether or not to check for planned maintenance notifications before executing the bulk failover runbook"
+      }
     }
   ],
 "outputs": {}

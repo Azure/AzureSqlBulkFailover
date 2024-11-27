@@ -25,6 +25,15 @@ catch {
     # do nothing
 }
 
+# CheckPlannedMaintenanceNotification is used to control whether the script checks for a planned maintenance notification before proceeding
+$global:CheckPlannedMaintenanceNotification = $true;
+try {
+    $global:CheckPlannedMaintenanceNotification = [bool](Get-AutomationVariable -Name 'CheckPlannedMaintenanceNotification')
+}
+catch {
+    # do nothing
+}
+
 #region Enumerations, globals and helper functions
 # enum containing resource object FailoverStatus values
 enum FailoverStatus {
@@ -495,6 +504,30 @@ class BulkFailover{
 #endregion
 
 #region Script Body
+GetPlannedNotificationId($SubscriptionId) {
+    # query resource health for planned maintenance notifications on the subscription
+    $notifications = Search-AzGraph -Query @"
+ServiceHealthResources
+| where type =~ 'Microsoft.ResourceHealth/events'
+| extend notificationTime = todatetime(tolong(properties.LastUpdateTime)),
+          eventType = properties.EventType,
+          status = properties.Status,
+          summary = properties.Summary,
+          trackingId = tostring(properties.TrackingId)
+| where eventType == 'PlannedMaintenance' 
+      and status == 'Active' 
+      and summary contains 'You may initiate upgrade of your databases at any time.'
+| summarize arg_max(notificationTime, *) by trackingId
+| project trackingId
+"@ -SubscriptionId $SubscriptionId;
+
+    if ($notifications.Count -gt 0) {
+        return $notifications[0].trackingId;
+    }
+    else {
+        return $null;
+    }
+}
 
 # Main method that runs the script to failover all databases and elastic pools in a resource group
 try
@@ -525,6 +558,28 @@ try
         $LogicalServerName = $null;
     }
 
+    # First check if the subscriptionId is null, if so, throw an exception
+    if ($null -eq $SubscriptionId) {
+        throw "SubscriptionId cannot be null."
+    }
+
+    # if the global checkPlannedMaintenanceNotification is set to true, check
+    if ($global:CheckPlannedMaintenanceNotification) {
+        # Check that a planned maintenance notification has been sent to client for the subscription
+        Log -message "Checking if a planned maintenance notification has been sent to client for subscription: $SubscriptionId..." -logLevel "Always"
+
+        # now check if we have a planned maintenance notification
+        $plannedNotificationId = GetPlannedNotificationId($SubscriptionId);
+        if ($null -eq $plannedNotificationId) {
+            throw "No planned maintenance notification found for subscription: $SubscriptionId. If you have received a maintenance notification for Self Service Maintenance, please contact support. To skip this check set the value of the global variable CheckPlannedMaintenanceNotification to false."
+        }
+
+        Log -message "Planned maintenance notification found for subscription: $SubscriptionId with EventID: $plannedNotificationId, proceeding..." -logLevel "Always"
+    }
+    else {
+        Log -message "Skipped planned maintenance notification check. Set global variable CheckPlannedMaintenanceNotification to true to enable." -logLevel "Always"
+    }
+    
     Log -message "Starting AzureSqlBulkFailover.ps1 on sub:'$($SubscriptionId)', resource group: '$($ResourceGroupName)', server: '$($LogicalServerName)'..." -logLevel "Always"
 
     # Connect to the sub using a system assigned managed identity
