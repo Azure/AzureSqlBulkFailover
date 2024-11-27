@@ -48,7 +48,7 @@
           ],
           "properties": {
             "description": "Downloads scripts from GitHub (AzureSqlBulkFailover) from the selected branch and executes them causing bulk failover of all databases in the selected serveer.",
-            "runbookType": "PowerShell",
+            "runbookType": "PowerShell7",
             "logProgress": "true",
             "logVerbose": "true",
             "logActivityTrace": 0,
@@ -87,32 +87,11 @@
       }
     },
     {
-        "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments",
+        "type": "Microsoft.Automation/automationAccounts/modules",
         "apiVersion": "2023-05-15-preview",
-        "name": "[concat(parameters('AutomationAccountName'), '/AzureSqlBulkFailoverEnv')]",
+        "name": "[concat(parameters('AutomationAccountName'), '/Az.Accounts')]",
         "location": "[resourceGroup().location]",
         "dependsOn": [
-            "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
-        ],
-        "properties": {
-            "runtime": {
-                "language": "PowerShell",
-                "version": "7.2"
-            },
-            "defaultPackages": {
-                "az": "11.2.0",
-                "azure cli": "2.56.0"
-            },
-            "description": "Environment For Running AzureSqlBulkFailover runbook"
-        }
-    },
-    {
-        "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments/packages",
-        "apiVersion": "2023-05-15-preview",
-        "name": "[concat(parameters('AutomationAccountName'), '/AzureSqlBulkFailoverEnv/Az.Accounts')]",
-        "location": "[resourceGroup().location]",
-        "dependsOn": [
-            "[resourceId('Microsoft.Automation/automationAccounts/runtimeEnvironments', parameters('AutomationAccountName'), 'AzureSqlBulkFailoverEnv')]",
             "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
         ],
         "properties": {
@@ -123,12 +102,11 @@
         }
     },
     {
-        "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments/packages",
+        "type": "Microsoft.Automation/automationAccounts/modules",
         "apiVersion": "2023-05-15-preview",
-        "name": "[concat(parameters('AutomationAccountName'), '/AzureSqlBulkFailoverEnv/Az.ResourceGraph')]",
+        "name": "[concat(parameters('AutomationAccountName'), '/Az.ResourceGraph')]",
         "location": "[resourceGroup().location]",
         "dependsOn": [
-            "[resourceId('Microsoft.Automation/automationAccounts/runtimeEnvironments', parameters('AutomationAccountName'), 'AzureSqlBulkFailoverEnv')]",
             "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
         ],
         "properties": {
