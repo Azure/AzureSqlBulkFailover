@@ -505,7 +505,7 @@ class BulkFailover{
 
 #region Script Body
 function GetPlannedNotificationId {
-    param (
+    param(
         [string]$SubscriptionId
     )
 
