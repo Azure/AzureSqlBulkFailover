@@ -65,6 +65,26 @@
             }
         },
         {
+            "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments",
+            "apiVersion": "2023-05-15-preview",
+            "name": "AzureSqlBulkFailover/PowerShell-7.2",
+            "location": "eastus",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
+            ],
+            "properties": {
+                "runtime": {
+                    "language": "PowerShell",
+                    "version": "7.2"
+                },
+                "defaultPackages": {
+                    "az": "8.3.0",
+                    "azure cli": "2.56.0"
+                },
+                "description": "System-generated Runtime Environment for your Automation account with Runtime language: PowerShell & Runtime version: 7.2. It automatically populates Packages defined for PowerShell 7.2 runtime version in your Automation account. This Runtime environment is non-editable. "
+            }
+        },
+        {
             "type": "Microsoft.Automation/automationAccounts/powerShell72Modules",
             "apiVersion": "2023-11-01",
             "name": "[concat(parameters('AutomationAccountName'), '/Az.Accounts')]",
@@ -87,7 +107,6 @@
             "dependsOn": [
                 "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
             ],
-            
             "properties": {
                 "contentLink": {
                   "hostType": "PowerShellGallery",
