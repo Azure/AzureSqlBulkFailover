@@ -505,11 +505,7 @@ class BulkFailover{
 
 #region Script Body
 function GetPlannedNotificationId {
-    param(
-        [string]$SubscriptionId
-    )
-
-    # query resource health for planned maintenance notifications on the subscription
+    # query resource health for planned maintenance notifications
     $notifications = Search-AzGraph -Query @"
 ServiceHealthResources
 | where type =~ 'Microsoft.ResourceHealth/events'
@@ -523,7 +519,7 @@ ServiceHealthResources
       and summary contains 'You may initiate upgrade of your databases at any time.'
 | summarize arg_max(notificationTime, *) by trackingId
 | project trackingId
-"@ -SubscriptionId $SubscriptionId;
+"@;
 
     if ($notifications.Count -gt 0) {
         return $notifications[0].trackingId;
@@ -573,7 +569,7 @@ try
         Log -message "Checking if a planned maintenance notification has been sent to client for subscription: $SubscriptionId..." -logLevel "Always"
         
         # now check if we have a planned maintenance notification
-        $plannedNotificationId = GetPlannedNotificationId($SubscriptionId);
+        $plannedNotificationId = GetPlannedNotificationId;
         if ($null -eq $plannedNotificationId) {
             throw "No planned maintenance notification found for subscription: $SubscriptionId. If you have received a maintenance notification for Self Service Maintenance, please contact support. To skip this check set the value of the global variable CheckPlannedMaintenanceNotification to false."
         }
