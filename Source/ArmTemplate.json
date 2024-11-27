@@ -48,13 +48,14 @@
           ],
           "properties": {
             "description": "Downloads scripts from GitHub (AzureSqlBulkFailover) from the selected branch and executes them causing bulk failover of all databases in the selected serveer.",
-            "runbookType": "PowerShell7",
+            "runbookType": "PowerShell",
             "logProgress": "true",
             "logVerbose": "true",
             "logActivityTrace": 0,
             "publishContentLink": {
               "uri": "[concat('https://raw.githubusercontent.com/Azure/AzureSqlBulkFailover/',parameters('branchName'),'/Source/RunbookEntrypoint.ps1')]"
-            }
+            },
+            "runOn": "AzureSqlBulkFailoverEnv"
           }
         }
       ]
