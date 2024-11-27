@@ -504,7 +504,10 @@ class BulkFailover{
 #endregion
 
 #region Script Body
-GetPlannedNotificationId($SubscriptionId) {
+function GetPlannedNotificationId {
+    param (
+        [string]$SubscriptionId
+    )
     # query resource health for planned maintenance notifications on the subscription
     $notifications = Search-AzGraph -Query @"
 ServiceHealthResources
@@ -567,7 +570,7 @@ try
     if ($global:CheckPlannedMaintenanceNotification) {
         # Check that a planned maintenance notification has been sent to client for the subscription
         Log -message "Checking if a planned maintenance notification has been sent to client for subscription: $SubscriptionId..." -logLevel "Always"
-
+        
         # now check if we have a planned maintenance notification
         $plannedNotificationId = GetPlannedNotificationId($SubscriptionId);
         if ($null -eq $plannedNotificationId) {
