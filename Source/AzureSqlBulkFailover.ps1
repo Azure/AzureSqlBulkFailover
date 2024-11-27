@@ -563,6 +563,11 @@ try
         throw "SubscriptionId cannot be null."
     }
 
+    # Connect to the sub using a system assigned managed identity
+    Log -message "Using subscription $subscriptionId" -logLevel "Verbose"
+    $AzureContext = (Connect-AzAccount -Identity -Subscription $SubscriptionId).context
+    Log -message "Connected to subscription $($AzureContext.Subscription.Name)." -logLevel "Verbose"
+    
     # if the global checkPlannedMaintenanceNotification is set to true, check
     if ($global:CheckPlannedMaintenanceNotification) {
         # Check that a planned maintenance notification has been sent to client for the subscription
@@ -581,11 +586,6 @@ try
     }
     
     Log -message "Starting AzureSqlBulkFailover.ps1 on sub:'$($SubscriptionId)', resource group: '$($ResourceGroupName)', server: '$($LogicalServerName)'..." -logLevel "Always"
-
-    # Connect to the sub using a system assigned managed identity
-    Log -message "Using subscription $subscriptionId" -logLevel "Verbose"
-    $AzureContext = (Connect-AzAccount -Identity -Subscription $SubscriptionId).context
-    Log -message "Connected to subscription $($AzureContext.Subscription.Name)." -logLevel "Verbose"
 
     # Create the bulk failover object and run the failover process
     Log -message "Initiating BulkFailover..." -logLevel "Always"
