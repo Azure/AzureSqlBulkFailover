@@ -81,7 +81,6 @@
                   "language": "PowerShell",
                   "version": "7.2"
                 },     
-                "isGlobal": true,                           
                 "description":  "Module for getting account related information"
             }
           },
@@ -104,7 +103,6 @@
                   "language": "PowerShell",
                   "version": "7.2"
                 },     
-                "isGlobal": true,                           
                 "description":  "Module for querying Azure Resource Graph"
             }
           },
