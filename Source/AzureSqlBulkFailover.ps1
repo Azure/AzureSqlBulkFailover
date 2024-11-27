@@ -1,6 +1,6 @@
 # Import the required modules
-Import-Module Az.ResourceGraph
-Import-Module Az.Identity
+Import-Module Az.Identity -MinimumVersion 4.0.0
+Import-Module Az.ResourceGraph -MinimumVersion 2.0.0
 
 # Last Updated: 2024-11-27
 # Purpose: This script is used to failover all databases and elastic pools in a subscription to a secondary, already upgraded replica
