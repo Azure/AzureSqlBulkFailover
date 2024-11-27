@@ -77,9 +77,12 @@
                   "version": "4.0.0",
                   "uri": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/4.0.0"
                 },
-            "runtimes": [
-                "PowerShell72"
-              ]
+                "runtime": {
+                  "language": "PowerShell",
+                  "version": "7.2"
+                },     
+                "isGlobal": true,                           
+                "description":  "Module for getting account related information"
             }
           },
           {
@@ -90,14 +93,19 @@
             "dependsOn": [
                 "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
             ],
+            
             "properties": {
                 "contentLink": {
+                  "hostType": "PowerShellGallery",
                   "version": "2.0.0",
                   "uri": "https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/2.0.0"
                 },
-            "runtimes": [
-                "PowerShell72"
-              ]
+                "runtime": {
+                  "language": "PowerShell",
+                  "version": "7.2"
+                },     
+                "isGlobal": true,                           
+                "description":  "Module for querying Azure Resource Graph"
             }
           },
           {
