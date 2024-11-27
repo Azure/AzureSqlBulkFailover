@@ -65,26 +65,6 @@
             }
         },
         {
-            "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments",
-            "apiVersion": "2023-05-15-preview",
-            "name": "AzureSqlBulkFailover/PowerShell-7.2",
-            "location": "eastus",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
-            ],
-            "properties": {
-                "runtime": {
-                    "language": "PowerShell",
-                    "version": "7.2"
-                },
-                "defaultPackages": {
-                    "az": "8.3.0",
-                    "azure cli": "2.56.0"
-                },
-                "description": "System-generated Runtime Environment for your Automation account with Runtime language: PowerShell & Runtime version: 7.2. It automatically populates Packages defined for PowerShell 7.2 runtime version in your Automation account. This Runtime environment is non-editable. "
-            }
-        },
-        {
             "type": "Microsoft.Automation/automationAccounts/powerShell72Modules",
             "apiVersion": "2023-11-01",
             "name": "[concat(parameters('AutomationAccountName'), '/Az.Accounts')]",
@@ -100,8 +80,8 @@
             }
           },
           {
-            "type": "Microsoft.Automation/automationAccounts/modules",
-            "apiVersion": "2023-05-15-preview",
+            "type": "Microsoft.Automation/automationAccounts/powerShell72Modules",
+            "apiVersion": "2023-11-01",
             "name": "[concat(parameters('AutomationAccountName'), '/Az.ResourceGraph')]",
             "location": "[resourceGroup().location]",
             "dependsOn": [
@@ -110,8 +90,8 @@
             "properties": {
                 "contentLink": {
                   "hostType": "PowerShellGallery",
-                  "version": "1.0.1",
-                  "uri": "https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/1.0.1"
+                  "version": "2.0.0",
+                  "uri": "https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/2.0.0"
                 },
                 "runtime": {
                   "language": "PowerShell",
@@ -119,32 +99,6 @@
                 },     
                 "description":  "Module for querying Azure Resource Graph"
             }
-          },
-          {
-            "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments/packages",
-            "apiVersion": "2023-05-15-preview",
-            "name": "[concat(parameters('AutomationAccountName'), '/PowerShell-7.2/Az.Accounts')]",
-            "location": "eastus",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts/runtimeEnvironments', parameters('AutomationAccountName'), 'PowerShell-7.2')]",
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
-            ],
-            "properties": {
-                "contentLink": {}
-            }
-          },
-          {
-              "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments/packages",
-              "apiVersion": "2023-05-15-preview",
-              "name": "[concat(parameters('AutomationAccountName'),'/PowerShell-7.2/Az.ResourceGraph')]",
-              "location": "eastus",
-              "dependsOn": [
-                  "[resourceId('Microsoft.Automation/automationAccounts/runtimeEnvironments', parameters('AutomationAccountName'), 'PowerShell-7.2')]",
-                  "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
-              ],
-              "properties": {
-                  "contentLink": {}
-              }
           },
           {
             "type": "Microsoft.Automation/automationAccounts/runbooks",
