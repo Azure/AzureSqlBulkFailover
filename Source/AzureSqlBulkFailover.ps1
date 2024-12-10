@@ -70,7 +70,7 @@ ServiceHealthResources
           trackingId = tostring(properties.TrackingId)
 | where eventType == 'PlannedMaintenance' 
       and status == 'Active' 
-      and summary contains 'You may initiate upgrade of your databases at any time.'
+      and summary contains 'azsqlcmwselfservicemaint'
 | summarize arg_max(notificationTime, *) by trackingId
 | project trackingId
 "@;
