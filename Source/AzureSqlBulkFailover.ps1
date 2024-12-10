@@ -29,7 +29,7 @@ catch {
 $global:LogList = [System.Collections.Generic.List[Tuple[string,int]]]::new()
 
 # CheckPlannedMaintenanceNotification is used to control whether the script checks for a planned maintenance notification before proceeding
-$global:CheckPlannedMaintenanceNotification = $true;
+$global:CheckPlannedMaintenanceNotification = $false;
 try {
     $global:CheckPlannedMaintenanceNotification = [bool](Get-AutomationVariable -Name 'CheckPlannedMaintenanceNotification')
 }
