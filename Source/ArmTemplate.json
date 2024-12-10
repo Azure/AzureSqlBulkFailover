@@ -28,7 +28,7 @@
         },
       "properties": {
           "comment": "Resource defined structure",
-          "disableLocalAuth": false,
+          "disableLocalAuth": true,
           "sku": {
             "name": "Basic"
           },
