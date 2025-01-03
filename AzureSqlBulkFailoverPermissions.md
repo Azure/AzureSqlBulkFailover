@@ -8,7 +8,10 @@ To do this, follow these steps:
 ![Role Assignment](./Media/RoleAssignment.png)
 5. Click the **Save** button.
 6. Repeat steps 3-5 for each subscription that contains databases that you want the runnbook to be able to failover. Note that when executing the runbook you may only select a single server to failover. However, the runbook will failover all databases and pools on that server and you may use the same runbook to failover servers on different subscriptions or resource groups as long as you have assigned permissions for it to do so.
-7. Verify permissions by selecting the resource group that contains your databases and selecting the **Access control (IAM)** tab and then clicking on **View access to this resource**.
+7. The feature that allows the runbook to check if maintenance notifications are active for the subscription requires reader permissions for the subscription itself. To assign this permissions, follow step 3 but select the scope as the subscription and assign the "Reader" role.
+![Role Assignment](./Media/SubscriptionReaderPermission.png)
+Note that this is not required for the runbook to failover databases, but it is required for the runbook to check if maintenance notifications are active for the subscription. If you do not assign this permission, you must turn off the feature switch (see:[AzureSqlBulkFailover - Usage](./AzureSqlBulkFailoverUsage.md#check-for-maintenance-notifications)) that tells the the runbook to check for maintenance notifications or else the runbook will not be able to find any notifications and report an error message as if no notifications were sent.
+8. Verify permissions by selecting the resource group that contains your databases and selecting the **Access control (IAM)** tab and then clicking on **View access to this resource**.
 ![Access Control](./Media/AccessControl.png)
 You should see the automation account listed with the role you assigned.
 ![Resource Access](./Media/ResourceAccess.png)

@@ -1,4 +1,4 @@
-# Last Updated: 2024-06-24
+# Last Updated: 2024-11-27
 # Purpose: This script is used to failover all databases and elastic pools in a subscription to a secondary, already upgraded replica
 # Usage: This script is intended to be run as an Azure Automation Runbook or locally.
 # Notes: This script is intended to be used to facilitate CMW customers to upgrade their databases on demand when upgrades are ready (one touch 
@@ -25,6 +25,18 @@ catch {
     # do nothing
 }
 
+# Create a list to store the log messages with their level to be displayed at end of script execution
+$global:LogList = [System.Collections.Generic.List[Tuple[string,int]]]::new()
+
+# CheckPlannedMaintenanceNotification is used to control whether the script checks for a planned maintenance notification before proceeding
+$global:CheckPlannedMaintenanceNotification = $false;
+try {
+    $global:CheckPlannedMaintenanceNotification = [bool](Get-AutomationVariable -Name 'CheckPlannedMaintenanceNotification')
+}
+catch {
+    # do nothing
+}
+
 #region Enumerations, globals and helper functions
 # enum containing resource object FailoverStatus values
 enum FailoverStatus {
@@ -46,13 +58,48 @@ function LogLevelValue($logLevel) {
     }
 }
 
-# helper function to Log -message messages to the console including the date, name of the calling class and method
+function GetPlannedNotificationId {
+    # query resource health for planned maintenance notifications
+    $notifications = Search-AzGraph -Query @"
+ServiceHealthResources
+| where type =~ 'Microsoft.ResourceHealth/events'
+| extend notificationTime = todatetime(tolong(properties.LastUpdateTime)),
+          eventType = properties.EventType,
+          status = properties.Status,
+          summary = properties.Summary,
+          trackingId = tostring(properties.TrackingId)
+| where eventType == 'PlannedMaintenance' 
+      and status == 'Active' 
+      and summary contains 'azsqlcmwselfservicemaint'
+| summarize arg_max(notificationTime, *) by trackingId
+| project trackingId
+"@;
+
+    if ($notifications.Count -gt 0) {
+        return $notifications[0].trackingId;
+    }
+    else {
+        return $null;
+    }
+}
+
+# helper function to Log -message messages to the log message list
 # LogLevel values can be 'Minimal', 'Info', 'Verbose'
-function Log([string]$message, [string]$logLevel)
-{
-    if ([int](LogLevelValue($logLevel)) -le [int](LogLevelValue($global:LogLevel))) {
-        $outputMessage = "$($logLevel): $([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message";
-        Write-Output $outputMessage;
+function Log([string]$message, [string]$logLevel) {
+    $logLevelValue =[int](LogLevelValue($logLevel));
+    $outputMessage = "$($logLevel): $([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message";
+    $global:LogList.Add([Tuple]::Create($outputMessage,$logLevelValue));
+}
+
+# Helper function to display the log messages at the end of the script execution
+function DisplayLogMessages([string]$logLevel) {
+    [int]$logLevelValue = [int](LogLevelValue($logLevel));
+    foreach ($tuple in $global:LogList) {
+        $message = $tuple.Item1
+        $level = $tuple.Item2
+        if ($level -le $logLevelValue) {
+            Write-Output $message
+        }
     }
 }
 #endregion
@@ -494,8 +541,7 @@ class BulkFailover{
 
 #endregion
 
-#region Script Body
-
+# region Script Body
 # Main method that runs the script to failover all databases and elastic pools in a resource group
 try
 {
@@ -525,22 +571,46 @@ try
         $LogicalServerName = $null;
     }
 
-    Log -message "Starting AzureSqlBulkFailover.ps1 on sub:'$($SubscriptionId)', resource group: '$($ResourceGroupName)', server: '$($LogicalServerName)'..." -logLevel "Always"
+    # First check if the subscriptionId is null, if so, throw an exception
+    if ($null -eq $SubscriptionId) {
+        throw "SubscriptionId cannot be null."
+    }
 
     # Connect to the sub using a system assigned managed identity
     Log -message "Using subscription $subscriptionId" -logLevel "Verbose"
     $AzureContext = (Connect-AzAccount -Identity -Subscription $SubscriptionId).context
     Log -message "Connected to subscription $($AzureContext.Subscription.Name)." -logLevel "Verbose"
+    
+    # if the global checkPlannedMaintenanceNotification is set to true, check
+    if ($global:CheckPlannedMaintenanceNotification) {
+        # Check that a planned maintenance notification has been sent to client for the subscription
+        Log -message "Checking if a planned maintenance notification has been sent to client for subscription: $SubscriptionId..." -logLevel "Always"
+        
+        # now check if we have a planned maintenance notification
+        $plannedNotificationId = GetPlannedNotificationId;
+        if ($null -eq $plannedNotificationId) {
+            throw "No planned maintenance notification found for subscription: $SubscriptionId. If you have received a maintenance notification for Self Service Maintenance, please contact support. To skip this check set the value of the global variable CheckPlannedMaintenanceNotification to false."
+        }
+
+        Log -message "Planned maintenance notification found for subscription: $SubscriptionId with EventID: $plannedNotificationId, proceeding..." -logLevel "Always"
+    }
+    else {
+        Log -message "Skipped planned maintenance notification check. Set global variable CheckPlannedMaintenanceNotification to true to enable." -logLevel "Always"
+    }
+    
+    Log -message "Starting AzureSqlBulkFailover.ps1 on sub:'$($SubscriptionId)', resource group: '$($ResourceGroupName)', server: '$($LogicalServerName)'..." -logLevel "Always"
 
     # Create the bulk failover object and run the failover process
     Log -message "Initiating BulkFailover..." -logLevel "Always"
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
     $bulkFailover.Run($SubscriptionId, $ResourceGroupName, $LogicalServerName);
     Log -message "Failover process complete." -logLevel "Always"
+    DisplayLogMessages($global:LogLevel)
 }
 catch {
     # Complete all progress bars and write the error
     Log -message "Exception: $($_)" -logLevel "Always"
+    DisplayLogMessages($global:LogLevel)
     throw
 }
 
