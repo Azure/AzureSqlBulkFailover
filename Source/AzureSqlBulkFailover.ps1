@@ -30,12 +30,12 @@ $global:LogList = [System.Collections.Generic.List[Tuple[string,int]]]::new()
 
 # CheckPlannedMaintenanceNotification is used to control whether the script checks for a planned maintenance notification before proceeding
 $global:CheckPlannedMaintenanceNotification = $false;
-try {
-    $global:CheckPlannedMaintenanceNotification = [bool](Get-AutomationVariable -Name 'CheckPlannedMaintenanceNotification')
-}
-catch {
-    # do nothing
-}
+#try {
+#    $global:CheckPlannedMaintenanceNotification = [bool](Get-AutomationVariable -Name 'CheckPlannedMaintenanceNotification')
+#}
+#catch {
+#    # do nothing
+#}
 
 #region Enumerations, globals and helper functions
 # enum containing resource object FailoverStatus values
@@ -113,7 +113,7 @@ class Server{
     [string]$ResourceGroupName # Resource group name for the server
     [string]$Name # Name of the server
     [bool]$isMI # Indicates whether server is a Managed Instance
-    [PSObject]$ResourceObject # The server response object
+
     # Constructor takes a server response object as returned from the API call methods 
     # and creates a server object with the required properties to facilitate processing and querying of state
     Server([PSObject]$server) {
@@ -121,7 +121,6 @@ class Server{
         $this.ResourceGroupName = $this.GetResourceGroupName($server);
         $this.Name = $this.GetName($server);
         $this.isMI = $this.IsServerMI($server);
-        $this.ResourceObject = $server;
     }
 
     # Helper to get the subscription ID from the server respose object
@@ -189,6 +188,7 @@ class DatabaseResource {
     # gets the resource ID (path) from the resource object
     [string]GetResourceId([PSObject]$resource)
     {  
+        Log -message "Resource: $($resource)" -logLevel "Verbose"
         return $resource.id;
     }
 
@@ -379,7 +379,7 @@ class ResourceList : System.Collections.Generic.List[object]{
     # Adds MI resource to this list
     [void]AddMIResource([Server]$server) {
         Log -message "Adding MI resources for server $($server.Name) in resource group $($server.ResourceGroupName) in subscription $($server.SubscriptionId)" -logLevel "Info";
-        $resource = [DatabaseResource]::new($server, $server.ResourceObject, [ResourceType]::ManagedInstance);
+        $resource = [DatabaseResource]::new($server, $_, [ResourceType]::ManagedInstance);
         $this.Add($resource)
     }
 
