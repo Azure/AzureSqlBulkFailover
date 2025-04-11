@@ -558,33 +558,6 @@ class BulkFailover{
         # add the resources for all the servers and Log -message the start of the failover process and the time
         $count = $this.AddResources();
         Log -message "Starting bulk failover of a total of $($this.resources.Count) resources in $($this.servers.Count) servers." -logLevel "Info";
-
-        # loop until all resources are failed or succeeded
-        do {
-            # failover Pending, wait for the sleep time and update FailoverStatus
-            $toFailoverCount = ($this.resources.CountInStatus([FailoverStatus]::Pending))
-            if ($toFailoverCount -gt 0)
-            {
-                Log -message "$toFailoverCount resources to be failed over...." -logLevel "Verbose"
-                $this.Failover();
-            }
-            $inProgressCount = ($this.resources.CountInStatus([FailoverStatus]::InProgress))
-            if ($inProgressCount -gt 0)
-            {
-                Log -message "$inProgressCount resources in progress.... " -logLevel "Verbose"
-                Start-Sleep -Seconds $global:SleepTime;
-            }
-            $this.UpdateFailoverStatus();
-        }while ($this.resources.HasPending());
-    
-        # Log -message the final FailoverStatus of the resources
-        $end = Get-Date;
-        Log -message "Succesfully failedover $($this.Resources.CountInStatus([FailoverStatus]::Succeeded)) out of $($this.Resources.Count) resources. Process took: $($end - $start)." -logLevel "Always";
-        if ($this.Resources.CountInStatus([FailoverStatus]::Failed) -gt 0) {
-            Log -message "Failed to failover $($this.Resources.CountInStatus([FailoverStatus]::Failed)) eligable resources. Retry or contact system administrator for support." -logLevel "Always";
-        }else{
-            Log -message "All eligable resources failed over successfully." -logLevel "Always";
-        }
     }
 }
 
