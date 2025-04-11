@@ -162,7 +162,7 @@ class DatabaseResource {
         $this.FailoverStatusPath = "";
         $this.Message = "";
         $this.Name = $this.GetName($resource); 
-        $this.ResourceId = $this.GetResourceId($resource);
+        $this.ResourceId = $this.GetResourceId($resource,$server);
         $this.ResourceType = $ResourceType;
         # We can always failover pools and Managed Instances, for databases we need to check if they are not hyperscale
         $this.ShouldFailover = $this.GetIsFailoverUpgrade($resource);
@@ -186,10 +186,14 @@ class DatabaseResource {
     }
 
     # gets the resource ID (path) from the resource object
-    [string]GetResourceId([PSObject]$resource)
+    [string]GetResourceId([PSObject]$resource, [Server]$server)
     {  
         Log -message "Resource: $($resource)" -logLevel "Verbose"
-        return $resource.id;
+        if ($server.isMI) {
+            return $server.id
+        } else {
+            return $resource.id
+        }
     }
 
     # gets the name of the resource from the resource object
