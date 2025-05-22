@@ -65,6 +65,32 @@
             }
         },
         {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2023-11-01",
+            "name": "[concat(parameters('AutomationAccountName'), '/DownloadRetryMaxAttempts')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": false,
+                "value": "5",
+                "description": "Maximum number of download retries for the runbook"
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2023-11-01",
+            "name": "[concat(parameters('AutomationAccountName'), '/DownloadRetryInitialDelaySeconds')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+            ],
+            "properties": {
+                "isEncrypted": false,
+                "value": "2",
+                "description": "Initial delay (seconds) used for exponential back-off between download retries"
+            }
+        },
+        {
             "type": "Microsoft.Automation/automationAccounts/powerShell72Modules",
             "apiVersion": "2023-11-01",
             "name": "[concat(parameters('AutomationAccountName'), '/Az.Accounts')]",
