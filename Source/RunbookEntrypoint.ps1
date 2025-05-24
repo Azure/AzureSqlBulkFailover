@@ -41,15 +41,39 @@ param(
 $scriptStartTime = (Get-Date).ToUniversalTime().ToString("o")
 Write-Output "Executing RunbookEntrypoint.ps1 with PS ver $($PSVersionTable.PSVersion) at $($scriptStartTime) on $($env:COMPUTERNAME) as $($env:USERNAME) from branch_name: $branch_name"
 
-# Gets all script files from the specified remote URI (github repo) and puts them in the specified local path (runbook path).
+# Retry configuration – defaults overridden by Automation variables  ------------
+$DownloadRetryMaxAttempts         = 10
+$DownloadRetryInitialDelaySeconds = 2
+try { $DownloadRetryMaxAttempts         = [int](Get-AutomationVariable -Name 'DownloadRetryMaxAttempts') }         catch {}
+try { $DownloadRetryInitialDelaySeconds = [int](Get-AutomationVariable -Name 'DownloadRetryInitialDelaySeconds') } catch {}
+
+# Retry helper ------------------------------------------------------------------
+function Invoke-WithRetry ([scriptblock]$scriptBlock, [int]$maxRetries, [int]$initialDelaySeconds, [double]$backoffFactor = 2) {
+    for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
+        try {
+            return & $scriptBlock
+        } catch {
+            if ($attempt -eq $maxRetries) { throw $_ }
+            $delay = [math]::Pow($backoffFactor, $attempt - 1) * $initialDelaySeconds
+            Write-Output "Attempt $attempt failed: $($_.Exception.Message). Retrying in $delay seconds..."
+            Start-Sleep -Seconds $delay
+        }
+    }
+}
+
+# Gets one file from GitHub -----------------------------------------------------
 function Get-File ([string]$remoteRootUri, [string]$remoteFile, [string]$localRootPath, [ref]$localFilePath = '') {
-  $remoteFileUri = "$($remoteRootUri)/$($remoteFile)"
-  $localFileName = [System.IO.Path]::GetFileName($remoteFile)
-  $downloadedFilePath = "$($localRootPath)\$($localFileName)"
-  Write-Output "Downloading $($remoteFileUri)..."
-  Invoke-WebRequest -Uri $remoteFileUri -OutFile $downloadedFilePath 
-  Unblock-File $downloadedFilePath
-  $localFilePath.Value = $downloadedFilePath
+    $remoteFileUri      = "$remoteRootUri/$remoteFile"
+    $localFileName      = [System.IO.Path]::GetFileName($remoteFile)
+    $downloadedFilePath = "$localRootPath\$localFileName"
+
+    Invoke-WithRetry -maxRetries:$DownloadRetryMaxAttempts -initialDelaySeconds:$DownloadRetryInitialDelaySeconds {
+        Write-Output "Downloading $remoteFileUri..."
+        Invoke-WebRequest -Uri $remoteFileUri -OutFile $downloadedFilePath -ErrorAction Stop
+        Unblock-File $downloadedFilePath
+    }
+
+    $localFilePath.Value = $downloadedFilePath
 }
 
 function Get-AllFiles ([string]$remoteRootUri, [string]$localRootPath, [ref]$allFiles) {
