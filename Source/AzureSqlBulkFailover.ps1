@@ -71,7 +71,7 @@ function GetPlannedNotificationId($subscriptionId) {
                 trackingId = tostring(properties.TrackingId)
             | where eventType == 'PlannedMaintenance' 
                 and status == 'Active' 
-//                and summary contains 'azsqlcmwselfservicemaint'
+                and summary contains 'azsqlcmwselfservicemaint'
             | summarize arg_max(notificationTime, *) by trackingId
             | project trackingId
 "@
@@ -627,6 +627,7 @@ catch {
 }
 
 #endregion
+
 
 
 
