@@ -78,13 +78,36 @@ function GetPlannedNotificationId($subscriptionId) {
       subscriptions = @($($subscriptionId))
     } | ConvertTo-Json -Depth 5
 
-    $response = Invoke-AzRestMethod -Method POST `
-      -Path "/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01" `
-      -Payload $body
+    $response = $null
+    try {
+        $response = Invoke-AzRestMethod -Method POST `
+            -Path "/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01" `
+            -Payload $body
+    }
+    catch {
+        # Non-2xx status code response
+        $stream = $_.Exception.Response.GetResponseStream()
+        $reader = New-Object System.IO.StreamReader($stream)
+        $reader.BaseStream.Position = 0
+        $reader.DiscardBufferedData()
+        $responseBody = $reader.ReadToEnd()
 
-    [PSCustomObject[]]$notifications = ($response.Content | ConvertFrom-Json).data
+        Log -message "Error: Microsoft.ResourceGraph unexpected response status code $($response.StatusCode), response body: $($responseBody)" -logLevel "Always"
+        throw "Graph request failed with status $($_.Exception.Response.StatusCode): $responseBody"
+    }
 
-    if ($notifications.Count -gt 0) {
+    # Azure Graph treats certain failures, including query parse failures, as logical failures, not API failures. 
+    # In these cases the response code may be 2xx, but there is an embedded message. Translate to exception. 
+    $content = $response.Content | ConvertFrom-Json
+    if ($content.error) {
+        $errorMessage = $content.error.message
+        Log -message "Resource Graph query failed: $errorMessage" -logLevel "Always"
+        throw "Unexpected Graph query error: $errorMessage"
+    }
+    
+    [PSCustomObject[]]$notifications = ($content).data
+
+    if ($null -ne $notifications -and $notifications.Count -gt 0) {
         return $notifications[0].trackingId;
     }
     else {
@@ -627,3 +650,4 @@ catch {
 }
 
 #endregion
+
