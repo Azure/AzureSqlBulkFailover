@@ -25,6 +25,9 @@ catch {
     # do nothing
 }
 
+# Import all needed modules
+Import-Module Az.ResourceGraph
+
 # Create a list to store the log messages with their level to be displayed at end of script execution
 $global:LogList = [System.Collections.Generic.List[Tuple[string,int]]]::new()
 
@@ -615,3 +618,4 @@ catch {
 }
 
 #endregion
+
