@@ -58,22 +58,31 @@ function LogLevelValue($logLevel) {
     }
 }
 
-function GetPlannedNotificationId {
+function GetPlannedNotificationId($subscriptionId) {
     # query resource health for planned maintenance notifications
-    $notifications = Search-AzGraph -Query @"
-ServiceHealthResources
-| where type =~ 'Microsoft.ResourceHealth/events'
-| extend notificationTime = todatetime(tolong(properties.LastUpdateTime)),
-          eventType = properties.EventType,
-          status = properties.Status,
-          summary = properties.Summary,
-          trackingId = tostring(properties.TrackingId)
-| where eventType == 'PlannedMaintenance' 
-      and status == 'Active' 
-      and summary contains 'azsqlcmwselfservicemaint'
-| summarize arg_max(notificationTime, *) by trackingId
-| project trackingId
-"@;
+    $body = @{
+        query = @"
+            ServiceHealthResources
+            | where type =~ 'Microsoft.ResourceHealth/events'
+            | extend notificationTime = todatetime(tolong(properties.LastUpdateTime)),
+                eventType = properties.EventType,
+                status = properties.Status,
+                summary = properties.Summary,
+                trackingId = tostring(properties.TrackingId)
+            | where eventType == 'PlannedMaintenance' 
+                and status == 'Active' 
+//                and summary contains 'azsqlcmwselfservicemaint'
+            | summarize arg_max(notificationTime, *) by trackingId
+            | project trackingId
+"@
+      subscriptions = @($($subscriptionId))
+    } | ConvertTo-Json -Depth 5
+
+    $response = Invoke-AzRestMethod -Method POST `
+      -Path "/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01" `
+      -Payload $body
+
+    [PSCustomObject[]]$notifications = ($response.Content | ConvertFrom-Json).data
 
     if ($notifications.Count -gt 0) {
         return $notifications[0].trackingId;
@@ -548,11 +557,6 @@ try
     Log -message "LogLevel = $($global:LogLevel)" -logLevel "Minimal"
     Log -message "CheckPlannedMaintenanceNotification = $($global:CheckPlannedMaintenanceNotification)" -logLevel "Minimal"
 
-    # Import all needed modules
-    Log -message "Module Import: Az.ResourceGraph" -logLevel "Verbose"
-    Import-Module Az.ResourceGraph
-    Log -message "Module Import Complete" -logLevel "Verbose"
-
     # Ensure we do not inherit the AzContext in the runbook
     Disable-AzContextAutosave -Scope Process | Out-Null
     
@@ -595,7 +599,7 @@ try
         Log -message "Checking if a planned maintenance notification has been sent to client for subscription: $SubscriptionId..." -logLevel "Always"
         
         # now check if we have a planned maintenance notification
-        $plannedNotificationId = GetPlannedNotificationId;
+        $plannedNotificationId = GetPlannedNotificationId -subscriptionId $SubscriptionId;
         if ($null -eq $plannedNotificationId) {
             throw "No planned maintenance notification found for subscription: $SubscriptionId. If you have received a maintenance notification for Self Service Maintenance, please contact support. To skip this check set the value of the global variable CheckPlannedMaintenanceNotification to false."
         }
@@ -623,6 +627,7 @@ catch {
 }
 
 #endregion
+
 
 
 
