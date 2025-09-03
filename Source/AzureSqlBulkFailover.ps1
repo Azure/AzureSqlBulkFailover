@@ -20,16 +20,10 @@ $global:SleepTime = 15;
 $global:LogLevel = 'Info';
 try {
     $global:LogLevel = Get-AutomationVariable -Name 'LogLevel'    
-    Log -message "Setting logging level to $($global:LogLevel)" -logLevel "Verbose"
 }
 catch {
     # do nothing
 }
-
-# Import all needed modules
-Log -message "Module Import: Az.ResourceGraph" -logLevel "Verbose"
-Import-Module Az.ResourceGraph
-Log -message "Module Import Complete" -logLevel "Verbose"
 
 # Create a list to store the log messages with their level to be displayed at end of script execution
 $global:LogList = [System.Collections.Generic.List[Tuple[string,int]]]::new()
@@ -551,6 +545,14 @@ class BulkFailover{
 # Main method that runs the script to failover all databases and elastic pools in a resource group
 try
 {
+    Log -message "LogLevel = $($global:LogLevel)" -logLevel "Minimal"
+    Log -message "CheckPlannedMaintenanceNotification = $($global:CheckPlannedMaintenanceNotification)" -logLevel "Minimal"
+
+    # Import all needed modules
+    Log -message "Module Import: Az.ResourceGraph" -logLevel "Verbose"
+    Import-Module Az.ResourceGraph
+    Log -message "Module Import Complete" -logLevel "Verbose"
+
     # Ensure we do not inherit the AzContext in the runbook
     Disable-AzContextAutosave -Scope Process | Out-Null
     
@@ -621,6 +623,7 @@ catch {
 }
 
 #endregion
+
 
 
 
