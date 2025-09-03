@@ -20,6 +20,7 @@ $global:SleepTime = 15;
 $global:LogLevel = 'Info';
 try {
     $global:LogLevel = Get-AutomationVariable -Name 'LogLevel'    
+    Log -message "Setting logging level to $($global:LogLevel)" -logLevel "Verbose"
 }
 catch {
     # do nothing
@@ -28,7 +29,7 @@ catch {
 # Import all needed modules
 Log -message "Module Import: Az.ResourceGraph" -logLevel "Verbose"
 Import-Module Az.ResourceGraph
-Log -message "Module Import Complete"
+Log -message "Module Import Complete" -logLevel "Verbose"
 
 # Create a list to store the log messages with their level to be displayed at end of script execution
 $global:LogList = [System.Collections.Generic.List[Tuple[string,int]]]::new()
@@ -620,5 +621,6 @@ catch {
 }
 
 #endregion
+
 
 
