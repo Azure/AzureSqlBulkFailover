@@ -99,13 +99,15 @@ function GetPlannedNotificationId($subscriptionId) {
     # Azure Graph treats certain failures, including query parse failures, as logical failures, not API failures. 
     # In these cases the response code may be 2xx, but there is an embedded message. Translate to exception. 
     $content = $response.Content | ConvertFrom-Json
-    if ($content.error) {
+    if ($content.PSObject.Properties.Match('error').Count -gt 0 -or $content.PSObject.Properties.Match('data').Count -ne 1) {
+        Log -message "Raw response content: $($content)" -logLevel "Always"
+
         $errorMessage = $content.error.message
         Log -message "Resource Graph query failed: $errorMessage" -logLevel "Always"
         throw "Unexpected Graph query error: $errorMessage"
     }
     
-    [PSCustomObject[]]$notifications = ($content).data
+    [PSCustomObject[]]$notifications = $content.data
 
     if ($null -ne $notifications -and $notifications.Count -gt 0) {
         return $notifications[0].trackingId;
@@ -650,4 +652,5 @@ catch {
 }
 
 #endregion
+
 
