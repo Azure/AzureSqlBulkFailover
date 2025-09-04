@@ -75,7 +75,7 @@ function GetPlannedNotificationId($subscriptionId) {
             | summarize arg_max(notificationTime, *) by trackingId
             | project trackingId
 "@
-      subscriptions = @($($subscriptionId))
+      subscriptions = @( $subscriptionId )
     } | ConvertTo-Json -Depth 5
 
     $response = $null
@@ -91,16 +91,19 @@ function GetPlannedNotificationId($subscriptionId) {
         $reader.BaseStream.Position = 0
         $reader.DiscardBufferedData()
         $responseBody = $reader.ReadToEnd()
+        $reader.Close()
+        $reader.Dispose()
+        $statusCode = $_.Exception.Response.StatusCode
 
-        Log -message "Error: Microsoft.ResourceGraph unexpected response status code $($response.StatusCode), response body: $($responseBody)" -logLevel "Always"
-        throw "Graph request failed with status $($_.Exception.Response.StatusCode): $responseBody"
+        Log -message "Error: Microsoft.ResourceGraph unexpected response status code $($statusCode), response body: $($responseBody)" -logLevel "Always"
+        throw "Graph request failed with status $($statusCode): $responseBody"
     }
 
     # Azure Graph treats certain failures, including query parse failures, as logical failures, not API failures. 
     # In these cases the response code may be 2xx, but there is an embedded message. Translate to exception. 
     $content = $response.Content | ConvertFrom-Json
     if ($content.PSObject.Properties.Match('error').Count -gt 0 -or $content.PSObject.Properties.Match('data').Count -ne 1) {
-        Log -message "Raw response content: $($content)" -logLevel "Always"
+        Log -message "Raw response content: $($response.Content)" -logLevel "Always"
 
         $errorMessage = $content.error.message
         Log -message "Resource Graph query failed: $errorMessage" -logLevel "Always"
@@ -652,5 +655,6 @@ catch {
 }
 
 #endregion
+
 
 
