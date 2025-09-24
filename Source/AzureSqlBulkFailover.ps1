@@ -511,8 +511,8 @@ class BulkFailover{
 
     # Returns true if all servers in the list are Managed Instances
     [bool]AllServersAreMI() {
-        foreach ($server in $this.servers) {
-            if (-not $server.IsServerMI()) {
+        $this.servers | ForEach-Object {
+            if (-not $_.isMI ) {
                 return $false;
             }
         }
@@ -524,13 +524,12 @@ class BulkFailover{
         $hasMI = $false
         $hasNonMI = $false
 
-        foreach ($server in $this.servers) {
-            if ($server.IsServerMI()) {
+        $this.servers | ForEach-Object {
+            if ($_.isMI ) {
                 $hasMI = $true
-            } else {
+            }else{
                 $hasNonMI = $true
             }
-
             if ($hasMI -and $hasNonMI) {
                 return $true
             }
