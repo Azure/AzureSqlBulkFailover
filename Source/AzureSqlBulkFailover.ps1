@@ -286,6 +286,10 @@ class DatabaseResource {
                 # get the header that gives us the URL to query the FailoverStatus of the request and remove the ARM prefix, add it to the resource as the FailoverStatus path
                 # get the AsynOperationHeader value from the response and parse out the path to the FailoverStatus of the request
                 $this.FailoverStatus = [FailoverStatus]::InProgress;
+                if($this.Server.isMI)
+                {
+                    $this.FailoverStatus = [FailoverStatus]::Succeeded;
+                }
                 $this.Message = "";
                 $CheckStatusPath = $response.Headers | Where-Object -Property Key -EQ "Azure-AsyncOperation";
                 $this.FailoverStatusPath  = ($CheckStatusPath.value[0]) -replace [regex]::Escape($($global:ARMBaseUri)), "";
@@ -505,6 +509,36 @@ class BulkFailover{
         $this.resources = ([ResourceList]::new());
     }
 
+    # Returns true if all servers in the list are Managed Instances
+    [bool]AllServersAreMI() {
+        foreach ($server in $this) {
+            if (-not $server.isMI) {
+                return $false;
+            }
+        }
+        return $true;
+    }
+
+    # Returns true if there is at least one MI server and one non-MI server
+    [bool]HasMixedServerTypes() {
+        $hasMI = $false
+        $hasNonMI = $false
+
+        foreach ($server in $this) {
+            if ($server.isMI) {
+                $hasMI = $true
+            } else {
+                $hasNonMI = $true
+            }
+
+            if ($hasMI -and $hasNonMI) {
+                return $true
+            }
+        }
+
+        return $false
+    }
+
     # Adds a list of servers to the servers list using the subscriptionId and resource group name
     # returns the number of servers added
     [int]AddServers([string]$subscriptionId, [string]$resourceGroupName, [string]$logicalServerName) {
@@ -620,7 +654,16 @@ class BulkFailover{
         if ($this.Resources.CountInStatus([FailoverStatus]::Failed) -gt 0) {
             Log -message "Failed to failover $($this.Resources.CountInStatus([FailoverStatus]::Failed)) eligable resources. Retry or contact system administrator for support." -logLevel "Always";
         }else{
-            Log -message "All eligable resources failed over successfully." -logLevel "Always";
+            if ($this.AllServersAreMI()) {
+                Log -message "Failover process is initiated on all eligible resources." -logLevel "Always";
+            } else {
+                if ($this.HasMixedServerTypes()) {
+                    Log -message "Failover process is initiated on all eligible SQLMI resources." -logLevel "Always";
+                    Log -message "All eligable SQLDB resources failed over successfully." -logLevel "Always";
+                } else {
+                    Log -message "All eligable resources failed over successfully." -logLevel "Always";
+                }
+            }
         }
     }
 }
