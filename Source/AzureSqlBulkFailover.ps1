@@ -519,6 +519,16 @@ class BulkFailover{
         return $true;
     }
 
+        # Returns true if all servers in the list are Managed Instances
+        [bool]AllServersAreDB() {
+            $this.servers | ForEach-Object {
+                if ($_.isMI ) {
+                    return $false;
+                }
+            }
+            return $true;
+        }
+
     # Returns true if there is at least one MI server and one non-MI server
     [bool]HasMixedServerTypes() {
         $hasMI = $false
@@ -649,7 +659,9 @@ class BulkFailover{
     
         # Log -message the final FailoverStatus of the resources
         $end = Get-Date;
-        Log -message "Succesfully failedover $($this.Resources.CountInStatus([FailoverStatus]::Succeeded)) out of $($this.Resources.Count) resources. Process took: $($end - $start)." -logLevel "Always";
+        if($this.AllServersAreDB()){
+            Log -message "Succesfully failedover $($this.Resources.CountInStatus([FailoverStatus]::Succeeded)) out of $($this.Resources.Count) resources. Process took: $($end - $start)." -logLevel "Always";
+        }
         if ($this.Resources.CountInStatus([FailoverStatus]::Failed) -gt 0) {
             Log -message "Failed to failover $($this.Resources.CountInStatus([FailoverStatus]::Failed)) eligable resources. Retry or contact system administrator for support." -logLevel "Always";
         }else{
