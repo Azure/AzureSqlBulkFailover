@@ -256,10 +256,6 @@ class DatabaseResource {
                 # get the header that gives us the URL to query the FailoverStatus of the request and remove the ARM prefix, add it to the resource as the FailoverStatus path
                 # get the AsynOperationHeader value from the response and parse out the path to the FailoverStatus of the request
                 $this.FailoverStatus = [FailoverStatus]::InProgress;
-                if($this.Server.isMI)
-                {
-                    $this.FailoverStatus = [FailoverStatus]::Succeeded;
-                }
                 $this.Message = "";
                 $CheckStatusPath = $response.Headers | Where-Object -Property Key -EQ "Azure-AsyncOperation";
                 $this.FailoverStatusPath  = ($CheckStatusPath.value[0]) -replace [regex]::Escape($($global:ARMBaseUri)), "";
