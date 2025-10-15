@@ -54,8 +54,6 @@ enum ResourceType {
     ManagedInstance # The Managed Instance.
 }
 
-# Create list to hold log records
-$global:LogRecords = @();
 
 # Get the numeric value of the LogLevel to facilitate comparison
 function LogLevelValue($logLevel) {
@@ -132,12 +130,21 @@ function GetPlannedNotificationId($subscriptionId) {
 
 # helper function to Log -message messages to the log message list
 # LogLevel values can be 'Minimal', 'Info', 'Verbose'
-function Log([string]$message, [string]$logLevel)
-{
-    if ([int](LogLevelValue($logLevel)) -le [int](LogLevelValue($global:LogLevel))) {
-        $outputMessage = "$($logLevel): $([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message";
-        $global:LogRecords += $outputMessage;
-        echo $outputMessage;
+function Log([string]$message, [string]$logLevel) {
+    $logLevelValue =[int](LogLevelValue($logLevel));
+    $outputMessage = "$($logLevel): $([DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss")) => $message";
+    $global:LogList.Add([Tuple]::Create($outputMessage,$logLevelValue));
+}
+
+# Helper function to display the log messages at the end of the script execution
+function DisplayLogMessages([string]$logLevel) {
+    [int]$logLevelValue = [int](LogLevelValue($logLevel));
+    foreach ($tuple in $global:LogList) {
+        $message = $tuple.Item1
+        $level = $tuple.Item2
+        if ($level -le $logLevelValue) {
+            Write-Output $message
+        }
     }
 }
 #endregion
@@ -225,7 +232,7 @@ class DatabaseResource {
 
     # gets the resource ID (path) from the resource object
     [string]GetResourceId([PSObject]$resource)
-    {  
+    {
         return $resource.id;
     }
 
@@ -509,45 +516,6 @@ class BulkFailover{
         $this.resources = ([ResourceList]::new());
     }
 
-    # Returns true if all servers in the list are Managed Instances
-    [bool]AllServersAreMI() {
-        $this.servers | ForEach-Object {
-            if (-not $_.isMI ) {
-                return $false;
-            }
-        }
-        return $true;
-    }
-
-        # Returns true if all servers in the list are Managed Instances
-        [bool]AllServersAreDB() {
-            $this.servers | ForEach-Object {
-                if ($_.isMI ) {
-                    return $false;
-                }
-            }
-            return $true;
-        }
-
-    # Returns true if there is at least one MI server and one non-MI server
-    [bool]HasMixedServerTypes() {
-        $hasMI = $false
-        $hasNonMI = $false
-
-        $this.servers | ForEach-Object {
-            if ($_.isMI ) {
-                $hasMI = $true
-            }else{
-                $hasNonMI = $true
-            }
-            if ($hasMI -and $hasNonMI) {
-                return $true
-            }
-        }
-
-        return $false
-    }
-
     # Adds a list of servers to the servers list using the subscriptionId and resource group name
     # returns the number of servers added
     [int]AddServers([string]$subscriptionId, [string]$resourceGroupName, [string]$logicalServerName) {
@@ -659,24 +627,13 @@ class BulkFailover{
     
         # Log -message the final FailoverStatus of the resources
         $end = Get-Date;
-        if($this.AllServersAreDB()){
-            Log -message "Succesfully failedover $($this.Resources.CountInStatus([FailoverStatus]::Succeeded)) out of $($this.Resources.Count) resources. Process took: $($end - $start)." -logLevel "Always";
-        }
+        Log -message "Succesfully failedover $($this.Resources.CountInStatus([FailoverStatus]::Succeeded)) out of $($this.Resources.Count) resources. Process took: $($end - $start)." -logLevel "Always";
         if ($this.Resources.CountInStatus([FailoverStatus]::Failed) -gt 0) {
             Log -message "Failed to failover $($this.Resources.CountInStatus([FailoverStatus]::Failed)) eligable resources. Retry or contact system administrator for support." -logLevel "Always";
         }else{
-            if ($this.AllServersAreMI()) {
-                Log -message "Failover process is initiated on all eligible resources." -logLevel "Always";
-            } else {
-                if ($this.HasMixedServerTypes()) {
-                    Log -message "Failover process is initiated on all eligible SQLMI resources." -logLevel "Always";
-                    Log -message "All eligable SQLDB resources failed over successfully." -logLevel "Always";
-                } else {
-                    Log -message "All eligable resources failed over successfully." -logLevel "Always";
-                }
+            Log -message "All eligable resources failed over successfully." -logLevel "Always";       
             }
         }
-    }
 }
 
 #endregion
@@ -749,13 +706,12 @@ try
     $bulkFailover.Run($SubscriptionId, $ResourceGroupName, $LogicalServerName);
     Log -message "Failover process complete." -logLevel "Always"
 
-    Write-Output $global:LogRecords;
-
+    DisplayLogMessages($global:LogLevel)
 }
 catch {
     # Complete all progress bars and write the error
     Log -message "Exception: $($_)" -logLevel "Always"
-    Write-Output $global:LogRecords;
+    DisplayLogMessages($global:LogLevel)
     throw
 }
 
