@@ -66,66 +66,26 @@ function LogLevelValue($logLevel) {
     }
 }
 
-function GetPlannedNotificationId($subscriptionId) {
-    # query resource health for planned maintenance notifications
-    $body = @{
-        query = @"
-            ServiceHealthResources
-            | where type =~ 'Microsoft.ResourceHealth/events'
-            | extend notificationTime = todatetime(tolong(properties.LastUpdateTime)),
-                eventType = properties.EventType,
-                status = properties.Status,
-                summary = properties.Summary,
-                trackingId = tostring(properties.TrackingId)
-            | where eventType == 'PlannedMaintenance' 
-                and status == 'Active' 
-                and summary contains 'azsqlcmwselfservicemaint'
-            | summarize arg_max(notificationTime, *) by trackingId
-            | project trackingId
-"@
-      subscriptions = @( $subscriptionId )
-    } | ConvertTo-Json -Depth 5
+function GetPlannedNotificationId{
+    $notifications = Search-AzGraph -Query @"
+ServiceHealthResources
+| where type =~ 'Microsoft.ResourceHealth/events'
+| extend notificationTime = todatetime(tolong(properties.LastUpdateTime)),
+          eventType = properties.EventType,
+          status = properties.Status,
+          summary = properties.Summary,
+          trackingId = tostring(properties.TrackingId)
+| where eventType == 'PlannedMaintenance' 
+      and status == 'Active' 
+      and summary contains 'azsqlcmwselfservicemaint'
+| summarize arg_max(notificationTime, *) by trackingId
+| project trackingId
+"@;
 
-    $response = $null
-    try {
-        $response = Invoke-AzRestMethod -Method POST `
-            -Path "/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01" `
-            -Payload $body
-    }
-    catch {
-        # Non-2xx status code response
-        $stream = $_.Exception.Response.GetResponseStream()
-        $reader = New-Object System.IO.StreamReader($stream)
-        $reader.BaseStream.Position = 0
-        $reader.DiscardBufferedData()
-        $responseBody = $reader.ReadToEnd()
-        $reader.Close()
-        $reader.Dispose()
-        $statusCode = $_.Exception.Response.StatusCode
-
-        Log -message "Error: Microsoft.ResourceGraph unexpected response status code $($statusCode), response body: $($responseBody)" -logLevel "Always"
-        throw "Graph request failed with status $($statusCode): $responseBody"
-    }
-
-    # Azure Graph treats certain failures, including query parse failures, as logical failures, not API failures. 
-    # In these cases the response code may be 2xx, but there is an embedded message. Translate to exception. 
-    $content = $response.Content | ConvertFrom-Json
-    if ($content.PSObject.Properties.Match('error').Count -gt 0 -or $content.PSObject.Properties.Match('data').Count -ne 1) {
-        Log -message "Raw response content: $($response.Content)" -logLevel "Always"
-
-        $errorMessage = $content.error.message
-        Log -message "Resource Graph query failed: $errorMessage" -logLevel "Always"
-        throw "Unexpected Graph query error: $errorMessage"
-    }
-    
-    [PSCustomObject[]]$notifications = $content.data
-
-    if ($null -ne $notifications -and $notifications.Count -gt 0) {
+    if ($notifications.Count -gt 0) {
         return $notifications[0].trackingId;
-    }
-    else {
+    } else {
         return $null;
-    }
 }
 
 # helper function to Log -message messages to the log message list
