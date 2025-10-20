@@ -66,7 +66,7 @@ function LogLevelValue($logLevel) {
     }
 }
 
-function GetPlannedNotificationId{
+function GetPlannedNotificationId {
     $notifications = Search-AzGraph -Query @"
 ServiceHealthResources
 | where type =~ 'Microsoft.ResourceHealth/events'
@@ -86,6 +86,7 @@ ServiceHealthResources
         return $notifications[0].trackingId;
     } else {
         return $null;
+    }
 }
 
 # helper function to Log -message messages to the log message list
