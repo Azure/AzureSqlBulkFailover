@@ -67,6 +67,7 @@ function LogLevelValue($logLevel) {
 }
 
 function GetPlannedNotificationId {
+    # query resource health for planned maintenance notifications
     $notifications = Search-AzGraph -Query @"
 ServiceHealthResources
 | where type =~ 'Microsoft.ResourceHealth/events'
@@ -357,7 +358,6 @@ class ResourceList : System.Collections.Generic.List[object]{
                     $count = $count + 1;
                     Log -message "Found Database: $($resource.Name)" -logLevel "Verbose"
                 }
-
             } 
             # get the next page of results if there is one
             # check if the content has a nextLink property, if so, get the next page of results
@@ -496,7 +496,6 @@ class BulkFailover{
             Log -message "Found $count resources in server $($server.Name) in resource group $($server.ResourceGroupName) in subscription $($server.SubscriptionId)" -logLevel "Info";
             return $count;
         }
-       
     }
 
     # Adds a list of resources from all the servers in the servers list to the resources list
@@ -644,11 +643,10 @@ try
         Log -message "Checking if a planned maintenance notification has been sent to client for subscription: $SubscriptionId..." -logLevel "Always"
         
         # now check if we have a planned maintenance notification
-        $plannedNotificationId = GetPlannedNotificationId -subscriptionId $SubscriptionId;
+        $plannedNotificationId = GetPlannedNotificationId
         if ($null -eq $plannedNotificationId) {
             throw "No planned maintenance notification found for subscription: $SubscriptionId. If you have received a maintenance notification for Self Service Maintenance, please contact support. To skip this check set the value of the global variable CheckPlannedMaintenanceNotification to false."
         }
-
         Log -message "Planned maintenance notification found for subscription: $SubscriptionId with EventID: $plannedNotificationId, proceeding..." -logLevel "Always"
     }
     else {
@@ -662,7 +660,6 @@ try
     [BulkFailover]$bulkFailover = [BulkFailover]::new();
     $bulkFailover.Run($SubscriptionId, $ResourceGroupName, $LogicalServerName);
     Log -message "Failover process complete." -logLevel "Always"
-
     DisplayLogMessages($global:LogLevel)
 }
 catch {
@@ -673,6 +670,3 @@ catch {
 }
 
 #endregion
-
-
-
