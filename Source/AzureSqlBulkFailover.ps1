@@ -586,9 +586,9 @@ class BulkFailover{
         $end = Get-Date;
         Log -message "Succesfully failedover $($this.Resources.CountInStatus([FailoverStatus]::Succeeded)) out of $($this.Resources.Count) resources. Process took: $($end - $start)." -logLevel "Always";
         if ($this.Resources.CountInStatus([FailoverStatus]::Failed) -gt 0) {
-            Log -message "Failed to failover $($this.Resources.CountInStatus([FailoverStatus]::Failed)) eligable resources. Retry or contact system administrator for support." -logLevel "Always";
+            Log -message "Failed to failover $($this.Resources.CountInStatus([FailoverStatus]::Failed)) eligible resources. Retry or contact system administrator for support." -logLevel "Always";
         }else{
-            Log -message "All eligable resources failed over successfully." -logLevel "Always";       
+            Log -message "All eligible resources failed over successfully." -logLevel "Always";       
             }
         }
 }
