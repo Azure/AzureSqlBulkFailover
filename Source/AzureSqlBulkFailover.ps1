@@ -186,7 +186,7 @@ class DatabaseResource {
     [string]FailoverUri() {
         if(-not $this.Server.isMI)
         {
-            return "$($this.ResourceId)/failover?api-version=2021-02-01-preview";
+            return "$($this.ResourceId)/failover?replicaType=Primary&api-version=2021-02-01-preview";
         }else{
             return "$($this.ResourceId)/failover?replicaType=Primary&api-version=2022-05-01-preview";
         }
@@ -228,13 +228,6 @@ class DatabaseResource {
     # This is determined by whether the CurrentSku tier of the databse is not HyperScale
     [bool]GetIsFailoverUpgrade([PSObject]$resource) {
         return ($this.ResourceType -eq [ResourceType]::Pool -or $this.ResourceType -eq [ResourceType]::ManagedInstance) -or ($resource.Properties.CurrentSku.tier) -ne "Hyperscale";
-    }
-
-    # Helper to determine if the resource should be failed over
-    [bool]ShouldFailover([PSObject]$resource) {
-        # note that if the DB is inactive and then become active during the script run
-        # it will not be failed over which is fine because it will get activated on the correct upgrade domain so doesnt need to be failed over
-        return ($this.ResourceType -eq [ResourceType]::Pool -or $this.ResourceType -eq [ResourceType]::ManagedInstance) -or ($this.GetIsFailoverUpgrade($resource) -and $this.GetIsActive($resource));
     }
 
     # Helper to determine if the resource failover process is complete
@@ -382,7 +375,7 @@ class ResourceList : System.Collections.Generic.List[object]{
     }
 
     # Adds MI resource to this list
-    [void]AddMIResource([Server]$server) {
+    [void]AddManagedInstanceResource([Server]$server) {
         Log -message "Adding MI resources for server $($server.Name) in resource group $($server.ResourceGroupName) in subscription $($server.SubscriptionId)" -logLevel "Info";
         $resource = [DatabaseResource]::new($server, $server.ResourceObject, [ResourceType]::ManagedInstance);
         $this.Add($resource)
@@ -488,7 +481,7 @@ class BulkFailover{
     [int]AddServerResources([Server] $server) {
         if($server.isMI)
         {
-            $this.resources.AddMIResource($server);
+            $this.resources.AddManagedInstanceResource($server);
             Log -message "Found MI Server resource $($server.Name) in resource group $($server.ResourceGroupName) in subscription $($server.SubscriptionId)" -logLevel "Info";
             return 1;
         }else{
