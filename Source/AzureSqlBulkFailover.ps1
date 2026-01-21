@@ -47,6 +47,14 @@ enum FailoverStatus {
     Failed # The failover process failed.
 }
 
+# enum containing type of the resource to be failed over
+enum ResourceType {
+    Database # The SQL database resource.
+    Pool # The SQL pool.
+    ManagedInstance # The Managed Instance.
+}
+
+
 # Get the numeric value of the LogLevel to facilitate comparison
 function LogLevelValue($logLevel) {
     switch ($logLevel) {
@@ -58,64 +66,26 @@ function LogLevelValue($logLevel) {
     }
 }
 
-function GetPlannedNotificationId($subscriptionId) {
+function GetPlannedNotificationId {
     # query resource health for planned maintenance notifications
-    $body = @{
-        query = @"
-            ServiceHealthResources
-            | where type =~ 'Microsoft.ResourceHealth/events'
-            | extend notificationTime = todatetime(tolong(properties.LastUpdateTime)),
-                eventType = properties.EventType,
-                status = properties.Status,
-                summary = properties.Summary,
-                trackingId = tostring(properties.TrackingId)
-            | where eventType == 'PlannedMaintenance' 
-                and status == 'Active' 
-                and summary contains 'azsqlcmwselfservicemaint'
-            | summarize arg_max(notificationTime, *) by trackingId
-            | project trackingId
-"@
-      subscriptions = @( $subscriptionId )
-    } | ConvertTo-Json -Depth 5
+    $notifications = Search-AzGraph -Query @"
+ServiceHealthResources
+| where type =~ 'Microsoft.ResourceHealth/events'
+| extend notificationTime = todatetime(tolong(properties.LastUpdateTime)),
+          eventType = properties.EventType,
+          status = properties.Status,
+          summary = properties.Summary,
+          trackingId = tostring(properties.TrackingId)
+| where eventType == 'PlannedMaintenance' 
+      and status == 'Active' 
+      and summary contains 'azsqlcmwselfservicemaint'
+| summarize arg_max(notificationTime, *) by trackingId
+| project trackingId
+"@;
 
-    $response = $null
-    try {
-        $response = Invoke-AzRestMethod -Method POST `
-            -Path "/providers/Microsoft.ResourceGraph/resources?api-version=2021-03-01" `
-            -Payload $body
-    }
-    catch {
-        # Non-2xx status code response
-        $stream = $_.Exception.Response.GetResponseStream()
-        $reader = New-Object System.IO.StreamReader($stream)
-        $reader.BaseStream.Position = 0
-        $reader.DiscardBufferedData()
-        $responseBody = $reader.ReadToEnd()
-        $reader.Close()
-        $reader.Dispose()
-        $statusCode = $_.Exception.Response.StatusCode
-
-        Log -message "Error: Microsoft.ResourceGraph unexpected response status code $($statusCode), response body: $($responseBody)" -logLevel "Always"
-        throw "Graph request failed with status $($statusCode): $responseBody"
-    }
-
-    # Azure Graph treats certain failures, including query parse failures, as logical failures, not API failures. 
-    # In these cases the response code may be 2xx, but there is an embedded message. Translate to exception. 
-    $content = $response.Content | ConvertFrom-Json
-    if ($content.PSObject.Properties.Match('error').Count -gt 0 -or $content.PSObject.Properties.Match('data').Count -ne 1) {
-        Log -message "Raw response content: $($response.Content)" -logLevel "Always"
-
-        $errorMessage = $content.error.message
-        Log -message "Resource Graph query failed: $errorMessage" -logLevel "Always"
-        throw "Unexpected Graph query error: $errorMessage"
-    }
-    
-    [PSCustomObject[]]$notifications = $content.data
-
-    if ($null -ne $notifications -and $notifications.Count -gt 0) {
+    if ($notifications.Count -gt 0) {
         return $notifications[0].trackingId;
-    }
-    else {
+    } else {
         return $null;
     }
 }
@@ -148,13 +118,16 @@ class Server{
     [string]$SubscriptionId # Subscription ID for the server
     [string]$ResourceGroupName # Resource group name for the server
     [string]$Name # Name of the server
-
+    [bool]$isMI # Indicates whether server is a Managed Instance
+    [PSObject]$ResourceObject # The server response object
     # Constructor takes a server response object as returned from the API call methods 
     # and creates a server object with the required properties to facilitate processing and querying of state
     Server([PSObject]$server) {
         $this.SubscriptionId = $this.GetSubscriptionId($server);
         $this.ResourceGroupName = $this.GetResourceGroupName($server);
         $this.Name = $this.GetName($server);
+        $this.isMI = $this.IsServerMI($server);
+        $this.ResourceObject = $server;
     }
 
     # Helper to get the subscription ID from the server respose object
@@ -171,6 +144,10 @@ class Server{
     [string]GetName([PSObject]$server) {
         return $server.name;
     }
+
+    [bool]IsServerMI([PSObject]$server) {
+        return $server.type -eq "Microsoft.Sql/managedInstances";
+    }
 }
 
 # Class that represents the base class for resource objects (databases and elastic pools)
@@ -182,19 +159,20 @@ class DatabaseResource {
     [string]$Name # Name of the resource
     [string]$ResourceId # The id (path) of the resource
     [bool]$ShouldFailover # Used to store if the resource will upgrade when failover is invoked (if this is false, resource will be skipped)
-    [bool]$IsPool # Used to store if the resource is an elastic pool
+    [ResourceType]$ResourceType # Used to store the type of the resource (database or elastic pool or MI server)
 
     # Constructor takes a Server object, and a resource object (database or elastic pool) as returned from the API call methods 
     # and creates a resource object with the required properties to facilitate processing and querying of state
-    DatabaseResource([Server]$server, [PSObject]$resource, [bool]$isPool) {
+    DatabaseResource([Server]$server, [PSObject]$resource, [ResourceType]$ResourceType) {
         $this.Server = $server;
         $this.FailoverStatus = [FailoverStatus]::Pending;
         $this.FailoverStatusPath = "";
         $this.Message = "";
         $this.Name = $this.GetName($resource); 
         $this.ResourceId = $this.GetResourceId($resource);
-        $this.IsPool = $isPool;
-        $this.ShouldFailover = $this.IsPool -or $this.GetIsFailoverUpgrade($resource);
+        $this.ResourceType = $ResourceType;
+        # We can always failover pools and Managed Instances, for databases we need to check if they are not hyperscale
+        $this.ShouldFailover = $this.GetIsFailoverUpgrade($resource);
     }
 
     # Determines if the database resource is in an elastic pool
@@ -206,7 +184,12 @@ class DatabaseResource {
 
     # return the URL to failover the resource (without the ARM base)
     [string]FailoverUri() {
-        return "$($this.ResourceId)/failover?api-version=2021-02-01-preview";
+        if(-not $this.Server.isMI)
+        {
+            return "$($this.ResourceId)/failover?replicaType=Primary&api-version=2021-02-01-preview";
+        }else{
+            return "$($this.ResourceId)/failover?replicaType=Primary&api-version=2022-05-01-preview";
+        }
     }
 
     # gets the resource ID (path) from the resource object
@@ -244,14 +227,7 @@ class DatabaseResource {
     # Helper to determine if the failover will actually invoke the UpgradeMeNow process.
     # This is determined by whether the CurrentSku tier of the databse is not HyperScale
     [bool]GetIsFailoverUpgrade([PSObject]$resource) {
-        return $this.IsPool -or ($resource.Properties.CurrentSku.tier) -ne "Hyperscale";
-    }
-
-    # Helper to determine if the resource should be failed over
-    [bool]ShouldFailover([PSObject]$resource) {
-        # note that if the DB is inactive and then become active during the script run
-        # it will not be failed over which is fine because it will get activated on the correct upgrade domain so doesnt need to be failed over
-        return $this.IsPool -or ($this.GetIsFailoverUpgrade($resource) -and $this.GetIsActive($resource));
+        return ($this.ResourceType -eq [ResourceType]::Pool -or $this.ResourceType -eq [ResourceType]::ManagedInstance) -or ($resource.Properties.CurrentSku.tier) -ne "Hyperscale";
     }
 
     # Helper to determine if the resource failover process is complete
@@ -337,7 +313,7 @@ class ResourceList : System.Collections.Generic.List[object]{
     static [string]DatabaseResourceListUrl([Server]$server){
         return "/subscriptions/$($server.SubscriptionId)/resourcegroups/$($server.ResourceGroupName)/providers/Microsoft.Sql/servers/$($server.Name)/databases?api-version=2021-02-01-preview";
     }
-
+ 
     # Helper to get the url (path) to the list of pool resources in the server
     static [string]ElasticPoolResourceListUrl([Server]$server){
         return "/subscriptions/$($server.SubscriptionId)/resourcegroups/$($server.ResourceGroupName)/providers/Microsoft.Sql/servers/$($server.Name)/elasticpools?api-version=2021-02-01-preview";
@@ -364,13 +340,13 @@ class ResourceList : System.Collections.Generic.List[object]{
             $content | ForEach-Object {
                 # if the pools flag is set then all the resources are all pools and we need to add them, otherwise they are databases
                 if ($pools) {
-                    $resource = [DatabaseResource]::new($server, $_, $true);
+                    $resource = [DatabaseResource]::new($server, $_, [ResourceType]::Pool);
                     $this.Add($resource);
                     $count = $count + 1;
                     Log -message "Found ElasticPool: $($resource.Name)" -logLevel "Verbose"
                 # Check if the resource is in a pool and ignore if so (some databases may be in pools), if not add it to the list
                 } elseif (-not ($pools -or [DatabaseResource]::IsInElasticPool($_))) {
-                    $resource = [DatabaseResource]::new($server, $_, $false);
+                    $resource = [DatabaseResource]::new($server, $_, [ResourceType]::Database);
                     $this.Add($resource);
                     $count = $count + 1;
                     Log -message "Found Database: $($resource.Name)" -logLevel "Verbose"
@@ -396,6 +372,13 @@ class ResourceList : System.Collections.Generic.List[object]{
     [int]AddResources([Server]$server) {
         # Add the pools and databases to the list of servers
         return $this.AddDatabaseOrPoolResources($server, $true) + $this.AddDatabaseOrPoolResources($server, $false)
+    }
+
+    # Adds MI resource to this list
+    [void]AddManagedInstanceResource([Server]$server) {
+        Log -message "Adding MI resources for server $($server.Name) in resource group $($server.ResourceGroupName) in subscription $($server.SubscriptionId)" -logLevel "Info";
+        $resource = [DatabaseResource]::new($server, $server.ResourceObject, [ResourceType]::ManagedInstance);
+        $this.Add($resource)
     }
 
     # Helper to get the number of resources in the list that are in the specified FailoverStatus
@@ -427,15 +410,34 @@ class ServerList : System.Collections.Generic.List[object]{
         return "/subscriptions/$subscriptionId/resourcegroups/$resourceGroupName/providers/Microsoft.Sql/servers?api-version=2021-02-01-preview";
     }
 
+    # Helper to get the url (path) to get the list of MI servers from the subscription and resource group
+    static [string]MIServerListUrl([string]$subscriptionId, [string]$resourceGroupName) {
+        return "/subscriptions/$subscriptionId/resourcegroups/$resourceGroupName/providers/Microsoft.Sql/managedInstances?api-version=2021-02-01-preview";
+    }
+
     # Adds the list of servers in a subscriptions resource group to this list. If no logical server name is provided, all logical servers 
     # are enumerated. If $logicalServerName is provided, the method just adds that server to the list. 
     [int]AddServers([string]$subscriptionId, [string]$resourceGroupName, [string]$logicalServerName) {
+        
+        # First we fetch all SQLDB servers in the resource group
         $url = [ServerList]::ServerListUrl($subscriptionId,$resourceGroupName)
         Log -message "AddServers: Invoke-AzRestMethod -Method GET -Path $url" -logLevel "Verbose"
         $response = Invoke-AzRestMethod -Method GET -Path $url;
         Log -message "response StatusCode: $($response.StatusCode)" -logLevel "Verbose"
         $content = ($response.Content | ConvertFrom-Json).value;
+        
+        # We proceed with fetching all SQLMI servers in the resource group
+        $url = [ServerList]::MIServerListUrl($subscriptionId,$resourceGroupName)
+        Log -message "AddServers: Invoke-AzRestMethod -Method GET -Path $url" -logLevel "Verbose"
+        $response = Invoke-AzRestMethod -Method GET -Path $url;
+        Log -message "response StatusCode: $($response.StatusCode)" -logLevel "Verbose"
+        $contentMI = ($response.Content | ConvertFrom-Json).value;
+        
+        # Combine the servers from both SQLDB and SQLMI
+        $content = $content + $contentMI;
+
         $serverArray = @();
+        Log -message $content -logLevel "Verbose";
         # if we have more than one server, split the logicalServerName into an array
         if (-not [String]::IsNullOrEmpty($logicalServerName)){
             $serverArray = $logicalServerName.Split(",") | ForEach-Object { $_.Trim() };
@@ -476,10 +478,17 @@ class BulkFailover{
 
     # Adds a list of resources from the server to the resources list
     # returns the number of resources added
-    [int]AddServerResources($server) {
-        $count = $this.resources.AddResources($server);
-        Log -message "Found $count resources in server $($server.Name) in resource group $($server.ResourceGroupName) in subscription $($server.SubscriptionId)" -logLevel "Info";
-        return $count;
+    [int]AddServerResources([Server] $server) {
+        if($server.isMI)
+        {
+            $this.resources.AddManagedInstanceResource($server);
+            Log -message "Found MI Server resource $($server.Name) in resource group $($server.ResourceGroupName) in subscription $($server.SubscriptionId)" -logLevel "Info";
+            return 1;
+        }else{
+            $count = $this.resources.AddResources($server);
+            Log -message "Found $count resources in server $($server.Name) in resource group $($server.ResourceGroupName) in subscription $($server.SubscriptionId)" -logLevel "Info";
+            return $count;
+        }
     }
 
     # Adds a list of resources from all the servers in the servers list to the resources list
@@ -569,11 +578,11 @@ class BulkFailover{
         $end = Get-Date;
         Log -message "Succesfully failedover $($this.Resources.CountInStatus([FailoverStatus]::Succeeded)) out of $($this.Resources.Count) resources. Process took: $($end - $start)." -logLevel "Always";
         if ($this.Resources.CountInStatus([FailoverStatus]::Failed) -gt 0) {
-            Log -message "Failed to failover $($this.Resources.CountInStatus([FailoverStatus]::Failed)) eligable resources. Retry or contact system administrator for support." -logLevel "Always";
+            Log -message "Failed to failover $($this.Resources.CountInStatus([FailoverStatus]::Failed)) eligible resources. Retry or contact system administrator for support." -logLevel "Always";
         }else{
-            Log -message "All eligable resources failed over successfully." -logLevel "Always";
+            Log -message "All eligible resources failed over successfully." -logLevel "Always";       
+            }
         }
-    }
 }
 
 #endregion
@@ -627,11 +636,10 @@ try
         Log -message "Checking if a planned maintenance notification has been sent to client for subscription: $SubscriptionId..." -logLevel "Always"
         
         # now check if we have a planned maintenance notification
-        $plannedNotificationId = GetPlannedNotificationId -subscriptionId $SubscriptionId;
+        $plannedNotificationId = GetPlannedNotificationId
         if ($null -eq $plannedNotificationId) {
             throw "No planned maintenance notification found for subscription: $SubscriptionId. If you have received a maintenance notification for Self Service Maintenance, please contact support. To skip this check set the value of the global variable CheckPlannedMaintenanceNotification to false."
         }
-
         Log -message "Planned maintenance notification found for subscription: $SubscriptionId with EventID: $plannedNotificationId, proceeding..." -logLevel "Always"
     }
     else {
@@ -655,6 +663,3 @@ catch {
 }
 
 #endregion
-
-
-
