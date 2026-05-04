@@ -16,6 +16,12 @@ $global:ARMBaseUri = "https://management.azure.com";
 # Sleep time in seconds between checking the FailoverStatus of the failover request
 $global:SleepTime = 15;
 
+# Maximum number of retry attempts on a failed API call
+$global:MaxRetryAttempts = 3;
+
+# Base delay in seconds between retries (uses exponential backoff: base * 2^(attempt-1))
+$global:RetryBaseDelaySec = 5;
+
 # LogLevel is used to control the amount of logging in the script, all only shows critical messages, info shows normal process messages, verbose shows all messages
 $global:LogLevel = 'Info';
 try {
@@ -144,6 +150,43 @@ function DisplayLogMessages([string]$logLevel) {
         $level = $tuple.Item2
         if ($level -le $logLevelValue) {
             Write-Output $message
+        }
+    }
+}
+
+# Helper function to invoke Invoke-AzRestMethod with retry logic on any error with exponential backoff
+function InvokeAzRestMethodWithRetry {
+    param(
+        [Parameter(Mandatory=$true)][string]$Method,
+        [Parameter(Mandatory=$true)][string]$Path,
+        [string]$Payload
+    )
+
+    $attempt = 0
+    while ($true) {
+        $attempt++
+        try {
+            if ($Payload) {
+                $response = Invoke-AzRestMethod -Method $Method -Path $Path -Payload $Payload
+            } else {
+                $response = Invoke-AzRestMethod -Method $Method -Path $Path
+            }
+            return $response
+        }
+        catch {
+            $errorMessage = $_.Exception.Message
+            $innerMessage = if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { '' }
+            Log -message "Exception on attempt $attempt/$($global:MaxRetryAttempts) for $Method $Path : $errorMessage$(if ($innerMessage) { " (Inner: $innerMessage)" })" -logLevel "Always"
+
+            if ($attempt -lt $global:MaxRetryAttempts) {
+                $delay = $global:RetryBaseDelaySec * [Math]::Pow(2, $attempt - 1)
+                Log -message "Retrying in $delay seconds..." -logLevel "Always"
+                Start-Sleep -Seconds $delay
+            }
+            else {
+                Log -message "Request failed after $attempt attempt(s) for $Method $Path. No more retries." -logLevel "Always"
+                throw
+            }
         }
     }
 }
@@ -279,8 +322,16 @@ class DatabaseResource {
         #only failover resources that should be failed over, set the FailoverStatus of the rest to skipped
         if ($this.ShouldFailover) {
             $url = $this.FailoverUri();
-            Log -message "Failover: Invoke-AzRestMethod -Method GET -Path $url" -logLevel "Verbose"
-            $response = Invoke-AzRestMethod -Method POST -Path $url;
+            Log -message "Failover: Submitting POST $url" -logLevel "Verbose"
+            try {
+                $response = InvokeAzRestMethodWithRetry -Method POST -Path $url;
+            }
+            catch {
+                $this.FailoverStatus = [FailoverStatus]::Failed;
+                $this.Message = "Exception during failover request: $($_.Exception.Message)";
+                Log -message "$($this.ResourceId) => FAILED to submit failover request: $($this.Message)" -logLevel "Always";
+                return;
+            }
             Log -message "response StatusCode: $($response.StatusCode)" -logLevel "Verbose"
             if (($response.StatusCode -eq 202) -or ($response.StatusCode -eq 200)) {# check if the failover request was accepted or completed Succeededfully
                 # get the header that gives us the URL to query the FailoverStatus of the request and remove the ARM prefix, add it to the resource as the FailoverStatus path
@@ -293,7 +344,7 @@ class DatabaseResource {
             } else {# If we got another kind of response, we failed to failover the resource
                 $this.FailoverStatus = [FailoverStatus]::Failed;
                 $this.Message = $response.Content;
-                Log -message "$($this.ResourceId). Error: $($response.StatusCode) - $($this.Message)." -logLevel "Always";
+                Log -message "$($this.ResourceId) => FAILED to submit failover request. Error: $($response.StatusCode) - $($this.Message)." -logLevel "Always";
             }
         }
         else {
@@ -308,8 +359,14 @@ class DatabaseResource {
     [void]UpdateFailoverStatus(){
         if ($this.FailoverStatus -eq [FailoverStatus]::InProgress) {
             $url = $this.FailoverStatusPath;
-            Log -message "UpdateFailoverStatus: Invoke-AzRestMethod -Method GET -Path $url" -logLevel "Verbose"
-            $response = Invoke-AzRestMethod -Method GET -Path ($this.FailoverStatusPath)
+            Log -message "UpdateFailoverStatus: GET $url" -logLevel "Verbose"
+            try {
+                $response = InvokeAzRestMethodWithRetry -Method GET -Path ($this.FailoverStatusPath)
+            }
+            catch {
+                Log -message "$($this.ResourceId) => Error checking failover status: $($_.Exception.Message). Will retry on next cycle." -logLevel "Always";
+                return;
+            }
             Log -message "response StatusCode: $($response.StatusCode)" -logLevel "Verbose"
             if ($response.StatusCode -eq 200) {
                 # check the content of the request to figure out if the failover completed Succeededfully
@@ -371,8 +428,8 @@ class ResourceList : System.Collections.Generic.List[object]{
         [int]$count = 0
         do {
             # query the URL and get the list of resources, filtering by pools or databases
-            Log -message "AddResources: Invoke-AzRestMethod -Method GET -Path $url" -logLevel "Verbose"
-            $response = Invoke-AzRestMethod -Method GET -Path $url;
+            Log -message "AddResources: GET $url" -logLevel "Verbose"
+            $response = InvokeAzRestMethodWithRetry -Method GET -Path $url;
             Log -message "response StatusCode: $($response.StatusCode)" -logLevel "Verbose"
             $content = @(($response.Content | ConvertFrom-Json).value);
             $content | ForEach-Object {
@@ -459,15 +516,15 @@ class ServerList : System.Collections.Generic.List[object]{
         
         # First we fetch all SQLDB servers in the resource group
         $url = [ServerList]::ServerListUrl($subscriptionId,$resourceGroupName)
-        Log -message "AddServers: Invoke-AzRestMethod -Method GET -Path $url" -logLevel "Verbose"
-        $response = Invoke-AzRestMethod -Method GET -Path $url;
+        Log -message "AddServers: GET $url" -logLevel "Verbose"
+        $response = InvokeAzRestMethodWithRetry -Method GET -Path $url;
         Log -message "response StatusCode: $($response.StatusCode)" -logLevel "Verbose"
         $content = ($response.Content | ConvertFrom-Json).value;
         
         # We proceed with fetching all SQLMI servers in the resource group
         $url = [ServerList]::MIServerListUrl($subscriptionId,$resourceGroupName)
-        Log -message "AddServers: Invoke-AzRestMethod -Method GET -Path $url" -logLevel "Verbose"
-        $response = Invoke-AzRestMethod -Method GET -Path $url;
+        Log -message "AddServers: GET $url" -logLevel "Verbose"
+        $response = InvokeAzRestMethodWithRetry -Method GET -Path $url;
         Log -message "response StatusCode: $($response.StatusCode)" -logLevel "Verbose"
         $contentMI = ($response.Content | ConvertFrom-Json).value;
         
@@ -541,18 +598,30 @@ class BulkFailover{
 
     # Fail over all the resources in the resources list that are Pending
     [void]Failover() {
-        $this.resources | ForEach-Object {
-            if ($_.FailoverStatus -eq ([FailoverStatus]::Pending)) {
-                $_.Failover();
+        foreach ($resource in $this.resources) {
+            if ($resource.FailoverStatus -eq ([FailoverStatus]::Pending)) {
+                try {
+                    $resource.Failover();
+                }
+                catch {
+                    $resource.FailoverStatus = [FailoverStatus]::Failed;
+                    $resource.Message = "Unexpected error: $($_.Exception.Message)";
+                    Log -message "$($resource.ResourceId) => FAILED with unexpected error: $($_.Exception.Message)" -logLevel "Always";
+                }
             }
         }
     }
 
     # Update the failover FailoverStatus of all resources that are InProgress
     [void]UpdateFailoverStatus() {
-        $this.resources | ForEach-Object {
-            if ($_.FailoverStatus -eq ([FailoverStatus]::InProgress)) {
-                $_.UpdateFailoverStatus();
+        foreach ($resource in $this.resources) {
+            if ($resource.FailoverStatus -eq ([FailoverStatus]::InProgress)) {
+                try {
+                    $resource.UpdateFailoverStatus();
+                }
+                catch {
+                    Log -message "$($resource.ResourceId) => Error during status update: $($_.Exception.Message). Will retry on next cycle." -logLevel "Always";
+                }
             }
         }
     }
@@ -617,6 +686,12 @@ class BulkFailover{
         Log -message "Succesfully failedover $($this.Resources.CountInStatus([FailoverStatus]::Succeeded)) out of $($this.Resources.Count) resources. Process took: $($end - $start)." -logLevel "Always";
         if ($this.Resources.CountInStatus([FailoverStatus]::Failed) -gt 0) {
             Log -message "Failed to failover $($this.Resources.CountInStatus([FailoverStatus]::Failed)) eligible resources. Retry or contact system administrator for support." -logLevel "Always";
+            foreach ($resource in $this.resources) {
+                if ($resource.FailoverStatus -eq [FailoverStatus]::Failed) {
+                    $detail = if ($resource.Message) { " - $($resource.Message)" } else { '' };
+                    Log -message "  [FAILED] $($resource.ResourceType) '$($resource.Name)' on server '$($resource.ServerName())'$detail" -logLevel "Always";
+                }
+            }
         }else{
             Log -message "All eligible resources failed over successfully." -logLevel "Always";       
             }
