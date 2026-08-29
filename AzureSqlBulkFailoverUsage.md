@@ -39,6 +39,6 @@ The runbook logs all activities to the Azure portal. You can view the logs by cl
 > ![Log Level Variable](./Media/LogLevelVariable.png)
 
 # Check for Maintenance Notifications
-The runbook can check for maintenance notifications before proceeding with the failover process. This feature is enabled by default but can be disabled by modifying the global automation accounts "CheckForMaintenanceNotifications" variable as shown in the following image.
+The runbook can check for maintenance notifications before proceeding with the failover process. This feature is enabled by default but can be disabled by modifying the global automation accounts "CheckPlannedMaintenanceNotification" variable as shown in the following image.
 ![Check for notifications variable](./Media/CheckForNotificationsVariable.png)
 Valid values for this variable are "True" and "False".

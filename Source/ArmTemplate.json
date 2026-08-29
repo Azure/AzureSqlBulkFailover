@@ -17,6 +17,9 @@
       }
     }
   },
+  "variables": {
+    "runtimeEnvironmentName": "PowerShell-7-4"
+  },
   "resources": [    
     {
       "name": "[parameters('AutomationAccountName')]",
@@ -91,52 +94,37 @@
             }
         },
         {
-            "type": "Microsoft.Automation/automationAccounts/powerShell72Modules",
-            "apiVersion": "2023-11-01",
-            "name": "[concat(parameters('AutomationAccountName'), '/Az.Accounts')]",
+            "type": "Microsoft.Automation/automationAccounts/runtimeEnvironments",
+            "apiVersion": "2024-10-23",
+            "name": "[concat(parameters('AutomationAccountName'), '/', variables('runtimeEnvironmentName'))]",
             "location": "[resourceGroup().location]",
             "dependsOn": [
                 "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
             ],
             "properties": {
-                "contentLink": {
-                  "version": "4.0.0",
-                  "uri": "https://www.powershellgallery.com/api/v2/package/Az.Accounts/4.0.0"
+                "description": "PowerShell 7.4 runtime environment used by the bulk failover runbook. The default Az package supplies Connect-AzAccount, Invoke-AzRestMethod and Get-AzResourceGroup, which are the only Az cmdlets the runbook requires.",
+                "runtime": {
+                  "language": "PowerShell",
+                  "version": "7.4"
+                },
+                "defaultPackages": {
+                  "Az": "12.3.0"
                 }
             }
           },
           {
-            "type": "Microsoft.Automation/automationAccounts/powerShell72Modules",
-            "apiVersion": "2023-11-01",
-            "name": "[concat(parameters('AutomationAccountName'), '/Az.ResourceGraph')]",
-            "location": "[resourceGroup().location]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]"
-            ],
-            "properties": {
-                "contentLink": {
-                  "hostType": "PowerShellGallery",
-                  "version": "2.0.0",
-                  "uri": "https://www.powershellgallery.com/api/v2/package/Az.ResourceGraph/2.0.0"
-                },
-                "runtime": {
-                  "language": "PowerShell",
-                  "version": "7.2"
-                },     
-                "description":  "Module for querying Azure Resource Graph"
-            }
-          },
-          {
             "type": "Microsoft.Automation/automationAccounts/runbooks",
-            "apiVersion": "2022-08-08",
+            "apiVersion": "2024-10-23",
             "name": "[concat(parameters('AutomationAccountName'),'/AzureSqlBulkFailoverRunbook')]",
             "location": "[resourceGroup().location]",
             "dependsOn": [
-              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+              "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]",
+              "[resourceId('Microsoft.Automation/automationAccounts/runtimeEnvironments', parameters('AutomationAccountName'), variables('runtimeEnvironmentName'))]"
             ],
             "properties": {
               "description": "Downloads scripts from GitHub (AzureSqlBulkFailover) from the selected branch and executes them causing bulk failover of all databases in the selected server.",
-              "runbookType": "PowerShell72",
+              "runbookType": "PowerShell",
+              "runtimeEnvironment": "[variables('runtimeEnvironmentName')]",
               "logProgress": "true",
               "logVerbose": "true",
               "logActivityTrace": 0,
